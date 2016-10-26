@@ -17,7 +17,3 @@ class PySweep:
         for mod in self.mods.values(): mod.pysweep_listeners_init()
         for mod in self.mods.values(): mod.pysweep_before_finish_init()
         for mod in self.mods.values(): mod.pysweep_finish_init()
-
-        returnevent = self.mods["TriggerMod"].trigger()
-        print(returnevent)
-        print(returnevent.children)
