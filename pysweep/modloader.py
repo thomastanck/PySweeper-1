@@ -136,6 +136,10 @@ def load_mods(name_module_dict):
         for modname, modclass in module.mods.items():
             if not inspect.isclass(modclass):
                 print("Mod '{}' in '{}' is not a class, skipping. (Found in: {})".format(modname, modulename, path))
+                continue
+            if not hasattr(modclass, "pysweep_init"):
+                print("Mod '{}' in '{}' does not have pysweep_init method, skipping. (Found in: {})".format(modname, modulename, path))
+                continue
             print("  Loading mod: {} ... ".format(modname), end="")
             mod = modclass()
             name_mod_dict[modname] = mod

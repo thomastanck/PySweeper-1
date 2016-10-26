@@ -12,3 +12,5 @@ class PySweep:
         self.mods = pysweep.modloader.load_mods_in("mods", "~/.pysweeper/mods")
 
         print(self.mods)
+        for mod in self.mods.values():
+            mod.pysweep_init(self)
