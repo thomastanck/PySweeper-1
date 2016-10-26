@@ -1,5 +1,6 @@
-class Mod:
-    def pysweep_init(self, pysweep):
-        self.pysweep = pysweep
+from pysweep.mod import Mod
 
-mods = {"PackageModName": Mod}
+class PackageMod(Mod):
+    pass
+
+mods = {"PackageModName": PackageMod}
