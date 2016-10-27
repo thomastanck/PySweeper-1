@@ -1,4 +1,5 @@
 from pysweep.mod import Mod, pysweep_listen, pysweep_trigger
+from pysweep.event import Event
 
 class ChainMod(Mod):
     """
