@@ -10,6 +10,6 @@ class TriggerMod(Mod):
     @pysweep_trigger
     def trigger(self):
         print("I'm gonna trigger you so hard, listener!")
-        return Event()
+        return Event('trigger')
 
 mods = {"TriggerMod": TriggerMod}

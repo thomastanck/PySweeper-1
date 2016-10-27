@@ -25,6 +25,10 @@ def pysweep_trigger(f):
 
     The method should return an event object which is passed to the mods
     listening to this function.
+
+    Any method that does something another mod might be interested in should
+    use this decorator and then return an Event to indicate that a thing was
+    done.
     """
     @functools.wraps(f)
     def _wrap(self, *args, **kwargs):
@@ -33,8 +37,9 @@ def pysweep_trigger(f):
         for listener in self.triggers[f.__name__]:
             listener_events.append(listener(event))
         event.children = listener_events
+        event.name = f.__name__
+        event.modname = type(self).__name__
         return event
-    #_wrap.__name__ = f.__name__
     _wrap.pysweep_is_trigger = True
     return _wrap
 

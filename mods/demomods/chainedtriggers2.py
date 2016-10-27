@@ -1,24 +1,13 @@
 from pysweep.mod import Mod, pysweep_listen, pysweep_trigger
 from pysweep.event import Event
 
-class ChainMod(Mod):
-    """
-    x - listens to -> y
-    A <- B
-    A <- C
-    B <- C
-    C <- D
-
-    Note that in this example we have functions that both listen and trigger
-    at the same time. However, it is probably a better idea to create separate
-    trigger functions so you have more control over what you trigger.
-    """
+class ChainMod2(Mod):
     def __init__(self):
         self.counter = 0
 
     def pysweep_finish_init(self):
         print()
-        print("Chained Trigger Demo")
+        print("Chained Trigger Demo 2")
         print(self.triggers)
         print()
         e = self.A()
@@ -32,26 +21,21 @@ class ChainMod(Mod):
         self.counter += 1
         return Event("A", self.counter)
 
-    @pysweep_trigger
-    @pysweep_listen("ChainMod", "A")
+    @pysweep_listen("ChainMod2", "A")
     def B(self, event):
         print("B", self.counter)
         self.counter += 1
-        return Event("B", self.counter, event.args[0])
+        return self.C(event)
 
-    @pysweep_trigger
-    @pysweep_listen("ChainMod", "A")
-    @pysweep_listen("ChainMod", "B")
     def C(self, event):
         print("C", self.counter)
         self.counter += 1
-        return Event("C", self.counter, event.args[0])
+        return [self.D(event), self.D(event)]
 
     @pysweep_trigger
-    @pysweep_listen("ChainMod", "C")
     def D(self, event):
         print("D", self.counter)
         self.counter += 1
         return Event("D", self.counter, event.args[0])
 
-mods = {"ChainMod": ChainMod}
+mods = {"ChainMod2": ChainMod2}
