@@ -138,11 +138,9 @@ def load_mods(name_module_dict):
             inspect.getmembers(module, predicate=inspect.isclass)
             if m[1].__module__ == module.__name__]
         for modname, modclass in class_list:
-            if not issubclass(modclass, pysweep.mod.Mod):
-                print("Class '{}' in '{}' not a mod, skipping. (Found in: {})".format(modname, modulename, path))
-                continue
-            if not hasattr(modclass, "pysweep_init"):
-                print("Mod '{}' in '{}' does not have pysweep_init method, skipping. (Found in: {})".format(modname, modulename, path))
+            ismod, missing = pysweep.mod.ismod(modclass)
+            if not ismod:
+                print("Class '{}' in '{}' is not a mod as it is missing the following functions, skipping. (Found in: {}) Missing: {}".format(modname, modulename, path, missing))
                 continue
             print("  Loading mod: {} ... ".format(modname), end="")
             mod = modclass()

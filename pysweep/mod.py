@@ -44,6 +44,17 @@ def pysweep_trigger(f):
     _wrap.pysweep_is_trigger = True
     return _wrap
 
+def ismod(cl):
+    """
+    Determines if a class is a mod or not by checking it has all the right
+    functions. I'm not sure if it'd be better to just test if it's a subclass
+    of Mod, but duck typing! \o/
+    """
+    modset = {fname for fname, _ in inspect.getmembers(Mod, predicate=inspect.isfunction)}
+    clset = {fname for fname, _ in inspect.getmembers(cl, predicate=inspect.isfunction)}
+    missing = modset - clset
+    return len(missing) == 0, missing
+
 class Mod:
     """
     Parent class for all mods
