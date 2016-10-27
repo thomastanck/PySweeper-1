@@ -4,6 +4,8 @@ Functions that load modules from directories
 
 import os, imp, inspect
 
+import pysweep.mod
+
 def load_mods_in(*paths):
     """
     Load all mods found in the directories pointed to by the paths list.
@@ -131,13 +133,13 @@ def load_mods(name_module_dict):
     name_mod_dict = {}
 
     for modulename, (module, path) in name_module_dict.items():
-        if not hasattr(module, "mods"):
-            print("'{}' has no global mods variable, skipping. (Found in: {})".format(modulename, path))
-            continue
         print("Loading mods in module: {}".format(modulename))
-        for modname, modclass in module.mods.items():
-            if not inspect.isclass(modclass):
-                print("Mod '{}' in '{}' is not a class, skipping. (Found in: {})".format(modname, modulename, path))
+        class_list = [m for m in
+            inspect.getmembers(module, predicate=inspect.isclass)
+            if m[1].__module__ == module.__name__]
+        for modname, modclass in class_list:
+            if not issubclass(modclass, pysweep.mod.Mod):
+                print("Class '{}' in '{}' not a mod, skipping. (Found in: {})".format(modname, modulename, path))
                 continue
             if not hasattr(modclass, "pysweep_init"):
                 print("Mod '{}' in '{}' does not have pysweep_init method, skipping. (Found in: {})".format(modname, modulename, path))
