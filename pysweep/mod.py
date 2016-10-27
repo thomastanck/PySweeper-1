@@ -29,7 +29,7 @@ def pysweep_trigger(f):
         event = f(self, *args, **kwargs)
         listener_events = []
         for listener in self.triggers[f.__name__]:
-            listener_events = listener(event)
+            listener_events.append(listener(event))
         event.children = listener_events
         return event
     _wrap.__name__ = f.__name__
