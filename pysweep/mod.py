@@ -4,6 +4,7 @@ functions mods will need to use.
 """
 
 import inspect
+import functools
 
 def pysweep_listen(mod, trigger):
     """
@@ -25,6 +26,7 @@ def pysweep_trigger(f):
     The method should return an event object which is passed to the mods
     listening to this function.
     """
+    @functools.wraps(f)
     def _wrap(self, *args, **kwargs):
         event = f(self, *args, **kwargs)
         listener_events = []
@@ -32,7 +34,7 @@ def pysweep_trigger(f):
             listener_events.append(listener(event))
         event.children = listener_events
         return event
-    _wrap.__name__ = f.__name__
+    #_wrap.__name__ = f.__name__
     _wrap.pysweep_is_trigger = True
     return _wrap
 

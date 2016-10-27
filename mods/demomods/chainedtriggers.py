@@ -24,8 +24,6 @@ class ChainMod(Mod):
         e = self.A(Event())
         print()
         print(e)
-        print(e.children)
-        print(e.children[0])
         print()
 
     @pysweep_trigger
