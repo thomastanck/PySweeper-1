@@ -32,16 +32,16 @@ class ChainMod(Mod):
         self.counter += 1
         return Event("A", self.counter)
 
-    @pysweep_listen("ChainMod", "A")
     @pysweep_trigger
+    @pysweep_listen("ChainMod", "A")
     def B(self, event):
         print("B", self.counter)
         self.counter += 1
         return Event("B", self.counter)
 
+    @pysweep_trigger
     @pysweep_listen("ChainMod", "A")
     @pysweep_listen("ChainMod", "B")
-    @pysweep_trigger
     def C(self, event):
         print("C", self.counter)
         self.counter += 1
