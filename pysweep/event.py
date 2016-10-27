@@ -9,11 +9,11 @@ class Event:
         self.children = []
 
     def __str__(self):
-        return "\{args:{},kwargs:{},children:{}\}".format(
+        return ("{" + "args:{},kwargs:{},children:{}".format(
             self.args,
             self.kwargs,
             self.children
-        )
+        ) + "}")
 
     def __repr__(self):
         return self.__str__()
