@@ -7,6 +7,7 @@ class Event:
         self.modname = None
         self.args = args
         self.kwargs = kwargs
+        self.parent = None
         self.children = []
 
     def __str__(self):

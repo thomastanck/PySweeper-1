@@ -37,6 +37,7 @@ def pysweep_trigger(f):
         event.modname = type(self).__name__
         if rootevent != None:
             rootevent.children.append(event)
+            event.parent = rootevent
         for listener in self.triggers[f.__name__]:
             listener(event)
         return event
