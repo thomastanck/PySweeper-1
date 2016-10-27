@@ -19,6 +19,7 @@ class ChainMod(Mod):
     def pysweep_finish_init(self):
         print()
         print("Chained Trigger Demo")
+        print(self.triggers)
         print()
         e = self.A(Event())
         print()
