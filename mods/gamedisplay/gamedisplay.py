@@ -48,28 +48,7 @@ class DisplayCanvas(tkinter.Canvas):
         self.tkimg = ImageTk.PhotoImage(self.img)
         self.create_image(0, 0, image=self.tkimg, anchor='nw')
 
-        maininsize = self.images.getinsize(boardsize, lcounterlength, rcounterlength)
-        self.border = Border(self, (0, 0), self.images.getsize(boardsize, lcounterlength, rcounterlength), self.images.border)
-
-        panelpos = (
-            self.images.border.thickness[1],
-            self.images.border.thickness[0],
-        )
-        panelsize = (
-            maininsize[0],
-            self.images.panel.getsize(lcounterlength, rcounterlength)[1],
-        )
-        self.panel = Panel(self, panelpos, panelsize, self.images.panel, lcounterlength, rcounterlength)
-
-        boardpos = (
-            self.images.border.thickness[1],
-            self.images.border.thickness[0] + panelsize[1],
-        )
-        boardpixelsize = (
-            maininsize[0],
-            self.images.board.getsize(boardsize)[1],
-        )
-        self.board = Board(self, boardpos, self.images.board, boardpixelsize, self.boardsize)
+        self.display = Display(self, (0, 0), boardsize, lcounterlength, rcounterlength, images)
 
         self.draw()
         # self.img.paste(Image.new(size=self.size, mode="RGB", color='blue'))
@@ -112,9 +91,7 @@ class DisplayCanvas(tkinter.Canvas):
 
         force can be set to True in order to force all parts to redraw.
         """
-        self.panel.draw(force)
-        self.board.draw(force)
-        self.border.draw(force)
+        self.display.draw(force)
 
     def update(self):
         if not self.update_queued:
@@ -124,6 +101,44 @@ class DisplayCanvas(tkinter.Canvas):
     def actually_update(self):
         self.update_queued = False
         self.tkimg.paste(self.img)
+
+class Display:
+    def __init__(self, displaycanvas, position, boardsize, lcounterlength, rcounterlength, images):
+        self.displaycanvas = displaycanvas
+        self.position = position
+        self.boardsize = boardsize
+        self.lcounterlength = lcounterlength
+        self.rcounterlength = rcounterlength
+        self.images = images
+        self.size = self.images.getsize(boardsize, lcounterlength, rcounterlength)
+
+        maininsize = self.images.getinsize(boardsize, lcounterlength, rcounterlength)
+        self.border = Border(self.displaycanvas, (0, 0), self.images.getsize(boardsize, lcounterlength, rcounterlength), self.images.border)
+
+        panelpos = (
+            self.images.border.thickness[1],
+            self.images.border.thickness[0],
+        )
+        panelsize = (
+            maininsize[0],
+            self.images.panel.getsize(lcounterlength, rcounterlength)[1],
+        )
+        self.panel = Panel(self.displaycanvas, panelpos, panelsize, self.images.panel, lcounterlength, rcounterlength)
+
+        boardpos = (
+            self.images.border.thickness[1],
+            self.images.border.thickness[0] + panelsize[1],
+        )
+        boardpixelsize = (
+            maininsize[0],
+            self.images.board.getsize(boardsize)[1],
+        )
+        self.board = Board(self.displaycanvas, boardpos, self.images.board, boardpixelsize, self.boardsize)
+
+    def draw(self, force=False):
+        self.panel.draw(force)
+        self.board.draw(force)
+        self.border.draw(force)
 
 class GridTile:
     """
