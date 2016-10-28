@@ -26,7 +26,7 @@ class GameDisplay(mod.Mod):
         """
         Create the display.
         """
-        self.displaycanvas = DisplayCanvas(self.pysweep.master, self.boardsize, self.images)
+        self.displaycanvas = DisplayCanvas(self.pysweep.master, self.boardsize, 3, 3, self.images)
 
     def pysweep_finish_init(self):
         """
@@ -35,11 +35,13 @@ class GameDisplay(mod.Mod):
         self.displaycanvas.pack()
 
 class DisplayCanvas(tkinter.Canvas):
-    def __init__(self, master, boardsize, images):
+    def __init__(self, master, boardsize, lcounterlength, rcounterlength, images):
         self.master = master
         self.boardsize = boardsize
+        self.lcounterlength = lcounterlength
+        self.rcounterlength = rcounterlength
         self.images = images
-        self.size = self.images.getsize(boardsize)
+        self.size = self.images.getsize(boardsize, lcounterlength, rcounterlength)
 
         super().__init__(master, width=self.size[0], height=self.size[1], highlightthickness=0)
 
@@ -49,8 +51,8 @@ class DisplayCanvas(tkinter.Canvas):
         self.tkimg = ImageTk.PhotoImage(self.img)
         self.create_image(0, 0, image=self.tkimg, anchor='nw')
 
-        maininsize = self.images.getinsize(boardsize)
-        self.border = Border(self, (0, 0), self.images.getsize(boardsize), self.images.border)
+        maininsize = self.images.getinsize(boardsize, lcounterlength, rcounterlength)
+        self.border = Border(self, (0, 0), self.images.getsize(boardsize, lcounterlength, rcounterlength), self.images.border)
 
         panelpos = (
             self.images.border.thickness[1],
@@ -58,19 +60,19 @@ class DisplayCanvas(tkinter.Canvas):
         )
         panelsize = (
             maininsize[0],
-            self.images.panel.getsize()[1],
+            self.images.panel.getsize(lcounterlength, rcounterlength)[1],
         )
-        self.panel = Panel(self, panelpos, panelsize, self.images.panel, 3, 3)
+        self.panel = Panel(self, panelpos, panelsize, self.images.panel, lcounterlength, rcounterlength)
 
         boardpos = (
             self.images.border.thickness[1],
-            self.images.border.thickness[0] + self.images.panel.size[1],
+            self.images.border.thickness[0] + panelsize[1],
         )
-        boardinsize = (
-            maininsize[0] - self.images.board.border.size[0],
-            self.images.board.getinsize(boardsize)[1],
+        boardpixelsize = (
+            maininsize[0],
+            self.images.board.getsize(boardsize)[1],
         )
-        self.board = Board(self, boardpos, self.images.board, self.boardsize)
+        self.board = Board(self, boardpos, self.images.board, boardpixelsize, self.boardsize)
 
         self.draw()
         # self.img.paste(Image.new(size=self.size, mode="RGB", color='blue'))
@@ -119,7 +121,18 @@ class GridTile:
         self.displaycanvas = displaycanvas
         self.position = position
         self.paste_amounts = paste_amounts
+        self.imgsize = img.size
         self.img = img
+        if self.imgsize == (1,1):
+            self.pixel = img.getpixel((0,0))
+        else:
+            self.pixel = None
+            if self.imgsize[0] == 1:
+                self.resize = 'h'
+            elif self.imgsize[1] == 1:
+                self.resize = 'v'
+            else:
+                self.resize = None
 
         self.shoulddraw = True
 
@@ -127,13 +140,39 @@ class GridTile:
         if not (force or self.shoulddraw):
             return
         self.shoulddraw = False
-        for col in range(self.paste_amounts[0]):
-            for row in range(self.paste_amounts[1]):
-                pastepos = (
-                    self.position[0] + self.img.size[0] * col,
-                    self.position[1] + self.img.size[1] * row,
-                )
-                self.displaycanvas.paste(self.img, pastepos)
+        if self.pixel is None:
+            if self.resize == 'h':
+                for row in range(self.paste_amounts[1]):
+                    newsize = (self.paste_amounts[0], self.imgsize[1])
+                    pastepos = (
+                        self.position[0],
+                        self.position[1] + self.imgsize[1] * row,
+                    )
+                    self.displaycanvas.paste(self.img.resize(newsize), pastepos)
+            elif self.resize == 'v':
+                for col in range(self.paste_amounts[0]):
+                    newsize = (self.imgsize[0], self.paste_amounts[1])
+                    pastepos = (
+                        self.position[0] + self.imgsize[0] * col,
+                        self.position[1],
+                    )
+                    self.displaycanvas.paste(self.img.resize(newsize), pastepos)
+            else:
+                for col in range(self.paste_amounts[0]):
+                    for row in range(self.paste_amounts[1]):
+                        pastepos = (
+                            self.position[0] + self.imgsize[0] * col,
+                            self.position[1] + self.imgsize[1] * row,
+                        )
+                        self.displaycanvas.paste(self.img, pastepos)
+        else:
+            pastearea = (
+                self.position[0],
+                self.position[1],
+                self.position[0] + self.paste_amounts[0],
+                self.position[1] + self.paste_amounts[1],
+            )
+            self.displaycanvas.paste(self.pixel, pastearea)
 
 class Border:
     """
@@ -156,16 +195,7 @@ class Border:
             self.size[1] - self.borderimages.size[1],
         )
 
-        # Corners
         th, lw, _, _ = self.borderimages.thickness
-        guide = {
-            'tl': (self.position[0] + 0,                   self.position[1] + 0),
-            'tr': (self.position[0] + lw + self.insize[0], self.position[1] + 0),
-            'bl': (self.position[0] + 0,                   self.position[1] + th + self.insize[1]),
-            'br': (self.position[0] + lw + self.insize[0], self.position[1] + th + self.insize[1]),
-        }
-        for k, v in guide.items():
-            self.displaycanvas.paste(self.borderimages.i[k], v)
 
         # Edges
         guide = {
@@ -176,6 +206,16 @@ class Border:
         }
         for k, v in guide.items():
             GridTile(self.displaycanvas, v[0], v[1], self.borderimages.i[k]).draw(force)
+
+        # Corners
+        guide = {
+            'tl': (self.position[0] + 0,                   self.position[1] + 0),
+            'tr': (self.position[0] + lw + self.insize[0], self.position[1] + 0),
+            'bl': (self.position[0] + 0,                   self.position[1] + th + self.insize[1]),
+            'br': (self.position[0] + lw + self.insize[0], self.position[1] + th + self.insize[1]),
+        }
+        for k, v in guide.items():
+            self.displaycanvas.paste(self.borderimages.i[k], v)
 
 class Panel:
     def __init__(self, displaycanvas, position, size, panelimages, lcounterlength, rcounterlength):
@@ -323,23 +363,42 @@ class Face:
         self.displaycanvas.paste(self.faceimages.i[self.mapping[self.face]], self.position)
 
 class Board:
-    def __init__(self, displaycanvas, position, boardimages, boardsize):
+    def __init__(self, displaycanvas, position, boardimages, size, boardsize):
         self.displaycanvas = displaycanvas
         self.position = position
         self.boardimages = boardimages
         self.boardsize = boardsize
-        self.size = self.boardimages.getsize(boardsize)
+        self.size = size
+        self.boardpixelsize = self.boardimages.getsize(boardsize)
 
         self.state = [[TileState.Unopened for i in range(self.boardsize[0])] for i in range(self.boardsize[1])]
 
-        self.border = Border(self.displaycanvas, self.position, self.size, self.boardimages.border)
+        self.bganchor = (
+            self.position[0] + self.size[0] // 2,
+            self.position[1],
+        )
+        self.bgamount = (
+            math.ceil(self.size[0] / self.boardimages.bg.size[0]),
+            math.ceil(self.size[1] / self.boardimages.bg.size[1]),
+        )
+        self.bgpos = (
+            self.bganchor[0] - self.bgamount[0] * self.boardimages.bg.size[0] // 2,
+            self.bganchor[1],
+        )
+        self.bg = GridTile(self.displaycanvas, self.bgpos, self.bgamount, self.boardimages.bg)
+
+        self.boardposition = (
+            self.position[0] + (self.size[0] - self.boardpixelsize[0]) // 2,
+            self.position[1],
+        )
+        self.border = Border(self.displaycanvas, self.boardposition, self.boardpixelsize, self.boardimages.border)
 
         self.tiles = [[None for i in range(self.boardsize[0])] for i in range(self.boardsize[1])]
         for col in range(self.boardsize[0]):
             for row in range(self.boardsize[1]):
                 pos = (
-                    self.position[0] + self.boardimages.border.thickness[1] + col * self.boardimages.tile.size[0],
-                    self.position[1] + self.boardimages.border.thickness[0] + row * self.boardimages.tile.size[1],
+                    self.boardposition[0] + self.boardimages.border.thickness[1] + col * self.boardimages.tile.size[0],
+                    self.boardposition[1] + self.boardimages.border.thickness[0] + row * self.boardimages.tile.size[1],
                 )
                 self.tiles[row][col] = Tile(self.displaycanvas, pos, self.boardimages.tile)
 
@@ -360,6 +419,8 @@ class Board:
         if not (force or self.shoulddraw):
             return
         self.shoulddraw = False
+
+        self.bg.draw(force)
         self.border.draw(force)
 
         for row, col in self.tileschanged:

@@ -187,7 +187,7 @@ class CounterImages:
     def getinsize(self, counter_length=1):
         return (
             self.digit.size[0] * counter_length,
-            self.digit.size[1] * counter_length,
+            self.digit.size[1],
         )
     def getsize(self, counter_length=1):
         insize = self.getinsize(counter_length)
