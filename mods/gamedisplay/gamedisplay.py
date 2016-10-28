@@ -294,10 +294,10 @@ class Border:
 
         # Edges
         guide = {
-            't': [(self.position[0] + lw + 0,              self.position[1] + 0),                   (self.insize[0], 1)],
-            'b': [(self.position[0] + lw + 0,              self.position[1] + th + self.insize[1]), (self.insize[0], 1)],
-            'l': [(self.position[0] + 0,                   self.position[1] + th + 0),              (1, self.insize[1])],
-            'r': [(self.position[0] + lw + self.insize[0], self.position[1] + th + 0),              (1, self.insize[1])],
+            't': [(self.position[0] + lw + 0,              self.position[1] + 0),                   (math.ceil(self.insize[0] / self.borderimages.i['t'].size[0]), 1)],
+            'b': [(self.position[0] + lw + 0,              self.position[1] + th + self.insize[1]), (math.ceil(self.insize[0] / self.borderimages.i['b'].size[0]), 1)],
+            'l': [(self.position[0] + 0,                   self.position[1] + th + 0),              (1, math.ceil(self.insize[1] / self.borderimages.i['l'].size[1]))],
+            'r': [(self.position[0] + lw + self.insize[0], self.position[1] + th + 0),              (1, math.ceil(self.insize[1] / self.borderimages.i['r'].size[1]))],
         }
         for k, v in guide.items():
             GridTile(self.displaycanvas, v[0], v[1], self.borderimages.i[k]).draw(force)
