@@ -43,7 +43,7 @@ def trigger(f):
         event.pysweep_node = eventnode
         if rootnode != None:
             rootnode.children.append(eventnode)
-        for listener in self.triggers[f.__name__]:
+        for listener in self.pysweep_triggers[f.__name__]:
             listener(event)
         return eventnode
     _wrap.pysweep_is_trigger = True
@@ -73,23 +73,23 @@ class Mod:
     def pysweep_init(self, pysweep):
         """
         Called 2nd.
-        All mods have been __init__ but nothing else is done
+        All mods have been __init__ but nothing else is done.
         """
         self.pysweep = pysweep
 
     def pysweep_triggers_init(self):
         """
         Called 3rd.
-        Set up triggers so other mods can listen to them
+        Set up triggers so other mods can listen to them.
         """
-        self.triggers = {}
+        self.pysweep_triggers = {}
         for funcname, func in inspect.getmembers(self, predicate=inspect.ismethod):
             try:
                 func.pysweep_is_trigger
             except:
                 continue
             if func.pysweep_is_trigger:
-                self.triggers[func.__name__] = []
+                self.pysweep_triggers[func.__name__] = []
 
     def pysweep_listeners_init(self):
         """
@@ -122,7 +122,7 @@ class Mod:
 
     def pysweep_register(self, trigger, func):
         """
-        Called by other mods to register a callback with a trigger
+        Called by other mods to register a callback with a trigger.
         """
         if not hasattr(self, trigger):
             raise ValueError("Trigger {} does not exist".format(trigger))
@@ -132,4 +132,4 @@ class Mod:
         except Exception as e:
             raise ValueError("'{}' is not a trigger".format(trigger)) from e
 
-        self.triggers[trigger].append(func)
+        self.pysweep_triggers[trigger].append(func)

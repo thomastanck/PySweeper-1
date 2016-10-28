@@ -8,7 +8,7 @@ from gamedisplay.event import DisplayEvent
 from gamedisplay.state import TileState, FaceState
 
 import pysweep.mod as mod
-from pysweep.event import Event
+# from pysweep.event import Event
 
 class GameDisplay(mod.Mod):
     def __init__(self):
