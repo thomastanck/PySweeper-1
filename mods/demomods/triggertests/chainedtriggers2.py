@@ -1,5 +1,5 @@
 from pysweep.mod import Mod, pysweep_listen, pysweep_trigger
-from pysweep.event import Event
+from pysweep.event import DictEvent
 
 class ChainMod2(Mod):
     def __init__(self):
@@ -19,7 +19,7 @@ class ChainMod2(Mod):
     def A(self):
         print("A", self.counter)
         self.counter += 1
-        return None, Event("A", self.counter)
+        return None, DictEvent(event="A", counter=self.counter)
 
     @pysweep_listen("ChainMod2", "A")
     def B(self, event):
@@ -37,6 +37,6 @@ class ChainMod2(Mod):
     def D(self, event):
         print("D", self.counter)
         self.counter += 1
-        return event, Event("D", self.counter, event.args[0])
+        return event, DictEvent(event="D", counter=self.counter, parentcounter=event['counter'])
 
 mods = {"ChainMod2": ChainMod2}

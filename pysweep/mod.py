@@ -6,6 +6,8 @@ functions mods will need to use.
 import inspect
 import functools
 
+from pysweep.event import EventNode
+
 def pysweep_listen(mod, trigger):
     """
     Decorator for methods that need to be callable by other mods.
@@ -33,14 +35,17 @@ def pysweep_trigger(f):
     @functools.wraps(f)
     def _wrap(self, *args, **kwargs):
         rootevent, event = f(self, *args, **kwargs)
-        event.name = f.__name__
-        event.modname = type(self).__name__
         if rootevent != None:
-            rootevent.children.append(event)
-            event.parent = rootevent
+            rootnode = rootevent.node
+        else:
+            rootnode = None
+        eventnode = EventNode(type(self).__name__, f.__name__, rootnode, event)
+        event.node = eventnode
+        if rootnode != None:
+            rootnode.children.append(eventnode)
         for listener in self.triggers[f.__name__]:
             listener(event)
-        return event
+        return eventnode
     _wrap.pysweep_is_trigger = True
     return _wrap
 

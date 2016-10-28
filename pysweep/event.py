@@ -1,21 +1,28 @@
 class Event:
+    def __init__(self):
+        self.node = None
+
+class DictEvent(dict, Event):
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
+        Event.__init__(self)
+
+class EventNode:
     """
     Supposed to be some parent class or something. "saa..."
     """
-    def __init__(self, *args, **kwargs):
-        self.name = None
-        self.modname = None
-        self.args = args
-        self.kwargs = kwargs
-        self.parent = None
+    def __init__(self, modname, name, parent, event):
+        self.modname = modname
+        self.name = name
+        self.parent = parent
         self.children = []
+        self.event = event
 
     def __str__(self):
-        return ("{" + "modname:'{}',name:'{}',args:{},kwargs:{},children:{}".format(
+        return ("{" + "modname:'{}',name:'{}',event:{},children:{}".format(
             self.modname,
             self.name,
-            self.args,
-            self.kwargs,
+            self.event,
             self.children
         ) + "}")
 
