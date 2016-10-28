@@ -268,6 +268,17 @@ class BoardImages:
         self.border = BorderImages(os.path.join(image_dir, 'border'), os.path.join(default_image_dir, 'border'))
         self.tile =   TileImages(  os.path.join(image_dir, 'tile'),   os.path.join(default_image_dir, 'tile'))
 
+        # The background
+        try:
+            imgpath = os.path.join(self.image_dir, "bg.png")
+            img = Image.open(imgpath)
+        except:
+            imgpath = os.path.join(self.default_image_dir, "bg.png")
+            img = Image.open(imgpath)
+
+        self.i = {'bg': img}
+        self.bg = img
+
     def getinsize(self, boardsize=(1,1)):
         return (
             self.tile.size[0] * boardsize[0],

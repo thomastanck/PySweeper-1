@@ -75,12 +75,27 @@ class DisplayCanvas(tkinter.Canvas):
         self.draw()
 
     def paste(self, *args, **kwargs):
-        return self.img.paste(*args, **kwargs)
+        self.img.paste(*args, **kwargs)
+        self.update()
 
-    def draw(self):
-        self.panel.draw()
-        self.border.draw()
-        self.board.draw()
+    def draw(self, force=False):
+        """
+        Parts should call draw on its child parts. It should determine if
+        a change has been made, and if so, make the change and call update.
+
+        If a part has pasted outside its region, it should return True
+
+        Parts should not make changes to the display until draw has been called!
+        This is because the order parts are drawn is important now that all
+        parts share a single canvas. For example, the border should not
+        be drawn before the panel's background is drawn, or else the panel's
+        background may bleed over the panel into the borders.
+
+        force can be set to True in order to force all parts to redraw.
+        """
+        self.panel.draw(force)
+        self.board.draw(force)
+        self.border.draw(force)
 
     def update(self):
         if not self.update_queued:
@@ -104,7 +119,12 @@ class GridTile:
         self.paste_amounts = paste_amounts
         self.img = img
 
-    def draw(self):
+        self.shoulddraw = True
+
+    def draw(self, force):
+        if not (force or self.shoulddraw):
+            return
+        self.shoulddraw = False
         for col in range(self.paste_amounts[0]):
             for row in range(self.paste_amounts[1]):
                 pastepos = (
@@ -112,7 +132,6 @@ class GridTile:
                     self.position[1] + self.img.size[1] * row,
                 )
                 self.displaycanvas.paste(self.img, pastepos)
-        self.displaycanvas.update()
 
 class Border:
     """
@@ -124,7 +143,12 @@ class Border:
         self.size = size
         self.borderimages = borderimages
 
-    def draw(self):
+        self.shoulddraw = True
+
+    def draw(self, force):
+        if not (force or self.shoulddraw):
+            return
+        self.shoulddraw = False
         self.insize = (
             self.size[0] - self.borderimages.size[0],
             self.size[1] - self.borderimages.size[1],
@@ -149,9 +173,7 @@ class Border:
             'r': [(self.position[0] + lw + self.insize[0], self.position[1] + th + 0),              (1, self.insize[1])],
         }
         for k, v in guide.items():
-            GridTile(self.displaycanvas, v[0], v[1], self.borderimages.i[k]).draw()
-
-        self.displaycanvas.update()
+            GridTile(self.displaycanvas, v[0], v[1], self.borderimages.i[k]).draw(force)
 
 class Panel:
     def __init__(self, displaycanvas, position, size, panelimages, lcounterlength, rcounterlength):
@@ -199,12 +221,12 @@ class Panel:
         )
         self.rcounter = Counter(self.displaycanvas, self.rcounterpos, self.panelimages.rcounter, rcounterlength)
 
-    def draw(self):
-        self.bg.draw()
-        self.border.draw()
-        self.lcounter.draw()
-        self.face.draw()
-        self.rcounter.draw()
+    def draw(self, force):
+        self.bg.draw(force)
+        self.border.draw(force)
+        self.lcounter.draw(force)
+        self.face.draw(force)
+        self.rcounter.draw(force)
 
 class Counter:
     def __init__(self, displaycanvas, position, counterimages, counterlength):
@@ -230,6 +252,7 @@ class Counter:
             self.digits.append(Digit(self.displaycanvas, digitpos, self.counterimages.digit))
 
         self.set_value(0)
+        self.shoulddraw = True
 
     def set_value(self, value):
         counterstr = ("{:>"+str(self.counterlength)+"}").format(value)
@@ -242,10 +265,10 @@ class Counter:
         for i, c in enumerate(self.counterstr):
             self.digits[i].set_value(c)
 
-    def draw(self):
-        self.border.draw()
+    def draw(self, force):
+        self.border.draw(force)
         for digit in self.digits:
-            digit.draw()
+            digit.draw(force)
 
 class Digit:
     def __init__(self, displaycanvas, position, digitimages):
@@ -253,21 +276,26 @@ class Digit:
         self.position = position
         self.digitimages = digitimages
 
-        self.state = 0
-
-    def set_value(self, value):
-        mapping = {
+        self.mapping = {
             ' ': 'off',
             '-': '-',
         }
         for i in range(10):
-            mapping[str(i)] = i
-        self.state = mapping[value]
+            self.mapping[str(i)] = i
 
-    def draw(self):
+        self.state = 0
+        self.shoulddraw = True
+
+    def set_value(self, value):
+        if self.state != self.mapping[value]:
+            self.state = self.mapping[value]
+            self.shoulddraw = True
+
+    def draw(self, force):
+        if not (force or self.shoulddraw):
+            return
+        self.shoulddraw = False
         self.displaycanvas.paste(self.digitimages.i[self.state], self.position)
-
-        self.displaycanvas.update()
 
 class Face:
     def __init__(self, displaycanvas, position, faceimages):
@@ -276,17 +304,21 @@ class Face:
         self.faceimages = faceimages
         self.face = FaceState.Happy
 
-    def draw(self):
-        mapping = {
+        self.mapping = {
             FaceState.Happy:   'happy',
             FaceState.Pressed: 'pressed',
             FaceState.Blast:   'blast',
             FaceState.Cool:    'cool',
             FaceState.Nervous: 'nervous',
         }
-        self.displaycanvas.paste(self.faceimages.i[mapping[self.face]], self.position)
 
-        self.displaycanvas.update()
+        self.shoulddraw = True
+
+    def draw(self, force):
+        if not (force or self.shoulddraw):
+            return
+        self.shoulddraw = False
+        self.displaycanvas.paste(self.faceimages.i[self.mapping[self.face]], self.position)
 
 class Board:
     def __init__(self, displaycanvas, position, boardimages, boardsize):
@@ -300,9 +332,7 @@ class Board:
 
         self.border = Border(self.displaycanvas, self.position, self.size, self.boardimages.border)
 
-    def draw(self):
-        self.border.draw()
-        mapping = {
+        self.mapping = {
             TileState.Mine:      'mine',
             TileState.Blast:     'blast',
             TileState.Flag:      'flag',
@@ -310,7 +340,15 @@ class Board:
             TileState.Unopened:  'unopened',
         }
         for i in range(9):
-            mapping[TileState.Number[i]] = 'i'
+            self.mapping[TileState.Number[i]] = 'i'
+
+        self.shoulddraw = True
+
+    def draw(self, force):
+        if not (force or self.shoulddraw):
+            return
+        self.shoulddraw = False
+        self.border.draw(force)
 
         for col in range(self.boardsize[0]):
             for row in range(self.boardsize[1]):
@@ -318,6 +356,4 @@ class Board:
                     self.position[0] + self.boardimages.border.thickness[1] + col * self.boardimages.tile.size[0],
                     self.position[1] + self.boardimages.border.thickness[0] + row * self.boardimages.tile.size[1],
                 )
-                self.displaycanvas.paste(self.boardimages.tile.i[mapping[self.state[row][col]]], pos)
-
-        self.displaycanvas.update()
+                self.displaycanvas.paste(self.boardimages.tile.i[self.mapping[self.state[row][col]]], pos)
