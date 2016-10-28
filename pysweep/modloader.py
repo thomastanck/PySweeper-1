@@ -103,9 +103,29 @@ def import_modules(module_path_dict):
     modules.
     """
     name_module_dict = {}
-    for name in module_path_dict.keys():
-        path, type_ = module_path_dict[name]
-        name_module_dict[name] = (import_module(name, path, type_), path)
+    modules_to_load = set(module_path_dict.keys())
+    while modules_to_load:
+        loaded_at_least_one = False
+        modules_loaded = set()
+        for name in modules_to_load:
+            try:
+                print("Importing: {} ... ".format(name), end="")
+                path, type_ = module_path_dict[name]
+                name_module_dict[name] = (import_module(name, path, type_), path)
+                loaded_at_least_one = True
+                modules_loaded.add(name)
+                print("done")
+            except ImportError as e:
+                # It's possible it tried to import another mod that hasn't been imported.
+                # skip it first and try again later.
+                failedexception = e
+                print("skip")
+                continue
+        if loaded_at_least_one:
+            modules_to_load -= modules_loaded
+        else:
+            raise failedexception
+    print()
     return name_module_dict
 
 def import_module(name, path, type_):
