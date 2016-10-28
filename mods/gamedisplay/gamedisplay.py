@@ -73,6 +73,8 @@ class DisplayCanvas(tkinter.Canvas):
         self.board = Board(self, boardpos, self.images.board, self.boardsize)
 
         self.draw()
+        # self.img.paste(Image.new(size=self.size, mode="RGB", color='blue'))
+        # self.draw()
 
     def paste(self, *args, **kwargs):
         self.img.paste(*args, **kwargs)
@@ -332,6 +334,15 @@ class Board:
 
         self.border = Border(self.displaycanvas, self.position, self.size, self.boardimages.border)
 
+        self.tiles = [[None for i in range(self.boardsize[0])] for i in range(self.boardsize[1])]
+        for col in range(self.boardsize[0]):
+            for row in range(self.boardsize[1]):
+                pos = (
+                    self.position[0] + self.boardimages.border.thickness[1] + col * self.boardimages.tile.size[0],
+                    self.position[1] + self.boardimages.border.thickness[0] + row * self.boardimages.tile.size[1],
+                )
+                self.tiles[row][col] = Tile(self.displaycanvas, pos, self.boardimages.tile)
+
         self.mapping = {
             TileState.Mine:      'mine',
             TileState.Blast:     'blast',
@@ -340,7 +351,7 @@ class Board:
             TileState.Unopened:  'unopened',
         }
         for i in range(9):
-            self.mapping[TileState.Number[i]] = 'i'
+            self.mapping[TileState.Number[i]] = i
 
         self.shoulddraw = True
 
@@ -352,8 +363,30 @@ class Board:
 
         for col in range(self.boardsize[0]):
             for row in range(self.boardsize[1]):
-                pos = (
-                    self.position[0] + self.boardimages.border.thickness[1] + col * self.boardimages.tile.size[0],
-                    self.position[1] + self.boardimages.border.thickness[0] + row * self.boardimages.tile.size[1],
-                )
-                self.displaycanvas.paste(self.boardimages.tile.i[self.mapping[self.state[row][col]]], pos)
+                self.tiles[row][col].draw(force)
+
+class Tile:
+    def __init__(self, displaycanvas, position, tileimages):
+        self.displaycanvas = displaycanvas
+        self.position = position
+        self.tileimages = tileimages
+
+        self.state = TileState.Unopened
+
+        self.mapping = {
+            TileState.Mine:      'mine',
+            TileState.Blast:     'blast',
+            TileState.Flag:      'flag',
+            TileState.FlagWrong: 'flag_wrong',
+            TileState.Unopened:  'unopened',
+        }
+        for i in range(9):
+            self.mapping[TileState.Number[i]] = i
+
+        self.shoulddraw = True
+
+    def draw(self, force):
+        if not (force or self.shoulddraw):
+            return
+        self.shoulddraw = True
+        self.displaycanvas.paste(self.tileimages.i[self.mapping[self.state]], self.position)
