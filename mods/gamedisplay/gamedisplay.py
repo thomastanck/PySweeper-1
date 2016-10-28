@@ -48,41 +48,29 @@ class DisplayCanvas(tkinter.Canvas):
         self.tkimg = ImageTk.PhotoImage(self.img)
         self.create_image(0, 0, image=self.tkimg, anchor='nw')
 
-        maininsize = self.images.getinsize(boardsize, lcounterlength, rcounterlength)
-        self.border = Border(self, (0, 0), self.images.getsize(boardsize, lcounterlength, rcounterlength), self.images.border)
-
-        panelpos = (
-            self.images.border.thickness[1],
-            self.images.border.thickness[0],
-        )
-        panelsize = (
-            maininsize[0],
-            self.images.panel.getsize(lcounterlength, rcounterlength)[1],
-        )
-        self.panel = Panel(self, panelpos, panelsize, self.images.panel, lcounterlength, rcounterlength)
-
-        boardpos = (
-            self.images.border.thickness[1],
-            self.images.border.thickness[0] + panelsize[1],
-        )
-        boardpixelsize = (
-            maininsize[0],
-            self.images.board.getsize(boardsize)[1],
-        )
-        self.board = Board(self, boardpos, self.images.board, boardpixelsize, self.boardsize)
+        self.display = Display(self, (0, 0), boardsize, lcounterlength, rcounterlength, images)
 
         self.draw()
         # self.img.paste(Image.new(size=self.size, mode="RGB", color='blue'))
         # self.draw()
 
-    def set_lcounter_value(self, value):
+    def set_lcounter(self, value):
         return self.panel.set_lcounter_value(value)
     def set_face(self, face):
         return self.panel.set_face(face)
-    def set_rcounter_value(self, value):
+    def set_rcounter(self, value):
         return self.panel.set_rcounter_value(value)
     def set_tile(self, index, tile):
         return self.board.set_tile(index, tile)
+
+    def get_lcounter_value(self):
+        return self.panel.get_lcounter_value()
+    def get_face(self):
+        return self.panel.get_face()
+    def get_rcounter_value(self):
+        return self.panel.get_rcounter_value()
+    def get_tile(self, index):
+        return self.board.get_tile(index)
 
     def paste(self, *args, **kwargs):
         self.img.paste(*args, **kwargs)
@@ -103,9 +91,7 @@ class DisplayCanvas(tkinter.Canvas):
 
         force can be set to True in order to force all parts to redraw.
         """
-        self.panel.draw(force)
-        self.board.draw(force)
-        self.border.draw(force)
+        self.display.draw(force)
 
     def update(self):
         if not self.update_queued:
@@ -115,6 +101,44 @@ class DisplayCanvas(tkinter.Canvas):
     def actually_update(self):
         self.update_queued = False
         self.tkimg.paste(self.img)
+
+class Display:
+    def __init__(self, displaycanvas, position, boardsize, lcounterlength, rcounterlength, images):
+        self.displaycanvas = displaycanvas
+        self.position = position
+        self.boardsize = boardsize
+        self.lcounterlength = lcounterlength
+        self.rcounterlength = rcounterlength
+        self.images = images
+        self.size = self.images.getsize(boardsize, lcounterlength, rcounterlength)
+
+        maininsize = self.images.getinsize(boardsize, lcounterlength, rcounterlength)
+        self.border = Border(self.displaycanvas, (0, 0), self.images.getsize(boardsize, lcounterlength, rcounterlength), self.images.border)
+
+        panelpos = (
+            self.images.border.thickness[1],
+            self.images.border.thickness[0],
+        )
+        panelsize = (
+            maininsize[0],
+            self.images.panel.getsize(lcounterlength, rcounterlength)[1],
+        )
+        self.panel = Panel(self.displaycanvas, panelpos, panelsize, self.images.panel, lcounterlength, rcounterlength)
+
+        boardpos = (
+            self.images.border.thickness[1],
+            self.images.border.thickness[0] + panelsize[1],
+        )
+        boardpixelsize = (
+            maininsize[0],
+            self.images.board.getsize(boardsize)[1],
+        )
+        self.board = Board(self.displaycanvas, boardpos, self.images.board, boardpixelsize, self.boardsize)
+
+    def draw(self, force=False):
+        self.panel.draw(force)
+        self.board.draw(force)
+        self.border.draw(force)
 
 class GridTile:
     """
@@ -131,14 +155,15 @@ class GridTile:
         self.img = img
         if self.imgsize == (1,1):
             self.pixel = img.getpixel((0,0))
+        elif self.imgsize[0] == 1:
+            self.pixel = None
+            self.resize = 'h'
+        elif self.imgsize[1] == 1:
+            self.pixel = None
+            self.resize = 'v'
         else:
             self.pixel = None
-            if self.imgsize[0] == 1:
-                self.resize = 'h'
-            elif self.imgsize[1] == 1:
-                self.resize = 'v'
-            else:
-                self.resize = None
+            self.resize = None
 
         self.shoulddraw = True
 
@@ -146,32 +171,7 @@ class GridTile:
         if not (force or self.shoulddraw):
             return
         self.shoulddraw = False
-        if self.pixel is None:
-            if self.resize == 'h':
-                for row in range(self.paste_amounts[1]):
-                    newsize = (self.paste_amounts[0], self.imgsize[1])
-                    pastepos = (
-                        self.position[0],
-                        self.position[1] + self.imgsize[1] * row,
-                    )
-                    self.displaycanvas.paste(self.img.resize(newsize), pastepos)
-            elif self.resize == 'v':
-                for col in range(self.paste_amounts[0]):
-                    newsize = (self.imgsize[0], self.paste_amounts[1])
-                    pastepos = (
-                        self.position[0] + self.imgsize[0] * col,
-                        self.position[1],
-                    )
-                    self.displaycanvas.paste(self.img.resize(newsize), pastepos)
-            else:
-                for col in range(self.paste_amounts[0]):
-                    for row in range(self.paste_amounts[1]):
-                        pastepos = (
-                            self.position[0] + self.imgsize[0] * col,
-                            self.position[1] + self.imgsize[1] * row,
-                        )
-                        self.displaycanvas.paste(self.img, pastepos)
-        else:
+        if self.pixel is not None:
             pastearea = (
                 self.position[0],
                 self.position[1],
@@ -179,6 +179,30 @@ class GridTile:
                 self.position[1] + self.paste_amounts[1],
             )
             self.displaycanvas.paste(self.pixel, pastearea)
+        elif self.resize == 'h':
+            for row in range(self.paste_amounts[1]):
+                newsize = (self.paste_amounts[0], self.imgsize[1])
+                pastepos = (
+                    self.position[0],
+                    self.position[1] + self.imgsize[1] * row,
+                )
+                self.displaycanvas.paste(self.img.resize(newsize), pastepos)
+        elif self.resize == 'v':
+            for col in range(self.paste_amounts[0]):
+                newsize = (self.imgsize[0], self.paste_amounts[1])
+                pastepos = (
+                    self.position[0] + self.imgsize[0] * col,
+                    self.position[1],
+                )
+                self.displaycanvas.paste(self.img.resize(newsize), pastepos)
+        else:
+            for col in range(self.paste_amounts[0]):
+                for row in range(self.paste_amounts[1]):
+                    pastepos = (
+                        self.position[0] + self.imgsize[0] * col,
+                        self.position[1] + self.imgsize[1] * row,
+                    )
+                    self.displaycanvas.paste(self.img, pastepos)
 
 class Border:
     """
@@ -269,12 +293,19 @@ class Panel:
         )
         self.rcounter = Counter(self.displaycanvas, self.rcounterpos, self.panelimages.rcounter, rcounterlength)
 
-    def set_lcounter_value(self, value):
+    def set_lcounter(self, value):
         return self.lcounter.set_value(value)
     def set_face(self, face):
         return self.face.set_face(face)
-    def set_rcounter_value(self, value):
+    def set_rcounter(self, value):
         return self.rcounter.set_value(value)
+
+    def get_lcounter(self):
+        return self.lcounter.get_value()
+    def get_face(self):
+        return self.face.get_face()
+    def get_rcounter(self):
+        return self.rcounter.get_value()
 
     def draw(self, force):
         self.bg.draw(force)
@@ -321,6 +352,9 @@ class Counter:
         for i, c in enumerate(self.counterstr):
             ret |= self.digits[i].set_value(c)
         return ret
+
+    def get_value(self):
+        return counterstr
 
     def draw(self, force):
         self.border.draw(force)
@@ -380,6 +414,9 @@ class Face:
             return True
         return False
 
+    def get_face(self, face):
+        return self.face
+
     def draw(self, force):
         if not (force or self.shoulddraw):
             return
@@ -433,13 +470,18 @@ class Board:
         """
         index is a 2-tuple containing the row and col of the tile to be modified.
         """
-        if self.state[index[0]][index[1]] != tile:
+        row, col = index
+        if self.state[row][col] != tile:
             self.shoulddraw = True
-            self.state[index[0]][index[1]] = tile
-            self.tiles[index[0]][index[1]].set_tile(tile)
-            self.tileschanged.add((index[0], index[1]))
+            self.state[row][col] = tile
+            self.tiles[row][col].set_tile(tile)
+            self.tileschanged.add((row, col))
             return True
         return False
+
+    def get_tile(self, index):
+        row, col = index
+        return self.state[row][col]
 
     def draw(self, force):
         if not (force or self.shoulddraw):
