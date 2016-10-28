@@ -50,12 +50,12 @@ class BorderImages:
                 try:
                     assert self.thickness[0] == self.i[key].size[1]
                 except AssertionError as e:
-                    e.args += ' '.join([
+                    e.args += (' '.join([
                         "All borders must have consistent thickness.",
                         "Expected height {}".format(self.thickness[0]),
-                        "but '{}.png'".format(imgpath),
-                        "has height.".format(self.i[key].size[1]),
-                    ])
+                        "but '{}'".format(imgpath),
+                        "has height {}.".format(self.i[key].size[1]),
+                    ]),)
                     raise e
         # Check left size
         for key in 'tl', 'l', 'bl':
@@ -65,12 +65,12 @@ class BorderImages:
                 try:
                     assert self.thickness[1] == self.i[key].size[0]
                 except AssertionError as e:
-                    e.args += ' '.join([
+                    e.args += (' '.join([
                         "All borders must have consistent thickness.",
                         "Expected width {}".format(self.thickness[1]),
-                        "but '{}.png'".format(imgpath),
-                        "has width.".format(self.i[key].size[0]),
-                    ])
+                        "but '{}'".format(imgpath),
+                        "has width {}.".format(self.i[key].size[0]),
+                    ]),)
                     raise e
         # Check right size
         for key in 'tr', 'r', 'br':
@@ -80,12 +80,12 @@ class BorderImages:
                 try:
                     assert self.thickness[2] == self.i[key].size[0]
                 except AssertionError as e:
-                    e.args += ' '.join([
+                    e.args += (' '.join([
                         "All borders must have consistent thickness.",
                         "Expected width {}".format(self.thickness[1]),
-                        "but '{}.png'".format(imgpath),
-                        "has width.".format(self.i[key].size[0]),
-                    ])
+                        "but '{}'".format(imgpath),
+                        "has width {}.".format(self.i[key].size[0]),
+                    ]),)
                     raise e
         # Check bottom size
         for key in 'bl', 'b', 'br':
@@ -95,12 +95,12 @@ class BorderImages:
                 try:
                     assert self.thickness[3] == self.i[key].size[1]
                 except AssertionError as e:
-                    e.args += ' '.join([
+                    e.args += (' '.join([
                         "All borders must have consistent thickness.",
                         "Expected height {}".format(self.thickness[3]),
-                        "but '{}.png'".format(imgpath),
-                        "has height.".format(self.i[key].size[1]),
-                    ])
+                        "but '{}'".format(imgpath),
+                        "has height {}.".format(self.i[key].size[1]),
+                    ]),)
                     raise e
 
         self.thickness = tuple(self.thickness)
@@ -197,12 +197,12 @@ class SpriteImages:
                 try:
                     assert self.size == img.size
                 except AssertionError as e:
-                    e.args += ' '.join([
+                    e.args += (' '.join([
                         "All images of this type must be of same size.",
                         "Expected size ({}, {})".format(*self.size),
-                        "but '{}.png'".format(imgpath),
+                        "but '{}'".format(imgpath),
                         "has size ({}, {}).".format(*img.size),
-                    ])
+                    ]),)
 
                     raise e
 

@@ -19,7 +19,6 @@ class GameDisplay(mod.Mod):
 
         self.board = [[TileState.Unopened for i in range(self.size[0])] for i in range(self.size[1])]
 
-
     def pysweep_before_finish_init(self):
         """
         Create the display.
