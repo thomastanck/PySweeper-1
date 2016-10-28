@@ -75,14 +75,23 @@ class DisplayCanvas(tkinter.Canvas):
         # self.img.paste(Image.new(size=self.size, mode="RGB", color='blue'))
         # self.draw()
 
-    def set_lcounter_value(self, value):
+    def set_lcounter(self, value):
         return self.panel.set_lcounter_value(value)
     def set_face(self, face):
         return self.panel.set_face(face)
-    def set_rcounter_value(self, value):
+    def set_rcounter(self, value):
         return self.panel.set_rcounter_value(value)
     def set_tile(self, index, tile):
         return self.board.set_tile(index, tile)
+
+    def get_lcounter_value(self):
+        return self.panel.get_lcounter_value()
+    def get_face(self):
+        return self.panel.get_face()
+    def get_rcounter_value(self):
+        return self.panel.get_rcounter_value()
+    def get_tile(self, index):
+        return self.board.get_tile(index)
 
     def paste(self, *args, **kwargs):
         self.img.paste(*args, **kwargs)
@@ -269,12 +278,19 @@ class Panel:
         )
         self.rcounter = Counter(self.displaycanvas, self.rcounterpos, self.panelimages.rcounter, rcounterlength)
 
-    def set_lcounter_value(self, value):
+    def set_lcounter(self, value):
         return self.lcounter.set_value(value)
     def set_face(self, face):
         return self.face.set_face(face)
-    def set_rcounter_value(self, value):
+    def set_rcounter(self, value):
         return self.rcounter.set_value(value)
+
+    def get_lcounter(self):
+        return self.lcounter.get_value()
+    def get_face(self):
+        return self.face.get_face()
+    def get_rcounter(self):
+        return self.rcounter.get_value()
 
     def draw(self, force):
         self.bg.draw(force)
@@ -321,6 +337,9 @@ class Counter:
         for i, c in enumerate(self.counterstr):
             ret |= self.digits[i].set_value(c)
         return ret
+
+    def get_value(self):
+        return counterstr
 
     def draw(self, force):
         self.border.draw(force)
@@ -380,6 +399,9 @@ class Face:
             return True
         return False
 
+    def get_face(self, face):
+        return self.face
+
     def draw(self, force):
         if not (force or self.shoulddraw):
             return
@@ -433,13 +455,18 @@ class Board:
         """
         index is a 2-tuple containing the row and col of the tile to be modified.
         """
-        if self.state[index[0]][index[1]] != tile:
+        row, col = index
+        if self.state[row][col] != tile:
             self.shoulddraw = True
-            self.state[index[0]][index[1]] = tile
-            self.tiles[index[0]][index[1]].set_tile(tile)
-            self.tileschanged.add((index[0], index[1]))
+            self.state[row][col] = tile
+            self.tiles[row][col].set_tile(tile)
+            self.tileschanged.add((row, col))
             return True
         return False
+
+    def get_tile(self, index):
+        row, col = index
+        return self.state[row][col]
 
     def draw(self, force):
         if not (force or self.shoulddraw):
