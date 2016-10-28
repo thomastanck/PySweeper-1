@@ -36,11 +36,11 @@ def pysweep_trigger(f):
     def _wrap(self, *args, **kwargs):
         rootevent, event = f(self, *args, **kwargs)
         if rootevent != None:
-            rootnode = rootevent.node
+            rootnode = rootevent.pysweep_node
         else:
             rootnode = None
         eventnode = EventNode(type(self).__name__, f.__name__, rootnode, event)
-        event.node = eventnode
+        event.pysweep_node = eventnode
         if rootnode != None:
             rootnode.children.append(eventnode)
         for listener in self.triggers[f.__name__]:

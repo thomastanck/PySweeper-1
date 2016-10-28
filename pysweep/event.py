@@ -3,6 +3,10 @@ class Event:
         self.node = None
 
 class DictEvent(dict, Event):
+    """
+    A event object that acts like a dict. It's probably easiest to use this
+    unless you want to subclass Event yourself for some special lulz.
+    """
     def __init__(self, *args, **kwargs):
         dict.__init__(self, *args, **kwargs)
         Event.__init__(self)
