@@ -16,12 +16,18 @@ class DisplayImages:
         self.panel =  PanelImages( os.path.join(image_dir, 'panel'),  os.path.join(default_image_dir, 'panel'))
         self.board =  BoardImages( os.path.join(image_dir, 'board'),  os.path.join(default_image_dir, 'board'))
 
-    def getsize(self, boardsize=(1,1), lcounter_length=1, rcounter_length=None):
+    def getinsize(self, boardsize=(1,1), lcounter_length=1, rcounter_length=None):
         boardpixelsize = self.board.getsize(boardsize)
         panelsize = self.panel.getsize(lcounter_length, rcounter_length)
         return (
-            self.border.size[0] + max(boardpixelsize[0], panelsize[0]),
-            self.border.size[1] + boardpixelsize[1] + panelsize[1],
+            max(boardpixelsize[0], panelsize[0]),
+            boardpixelsize[1] + panelsize[1],
+        )
+    def getsize(self, boardsize=(1,1), lcounter_length=1, rcounter_length=None):
+        insize = self.getinsize(boardsize, lcounter_length, rcounter_length)
+        return (
+            self.border.size[0] + insize[0],
+            self.border.size[1] + insize[1],
         )
     @property
     def size(self):
@@ -147,15 +153,21 @@ class PanelImages:
         self.i = {'bg': img}
         self.bg = img
 
-    def getsize(self, lcounter_length=1, rcounter_length=None):
+    def getinsize(self, lcounter_length=1, rcounter_length=None):
         lcountersize = self.lcounter.getsize(lcounter_length)
         if rcounter_length is None:
             rcountersize = self.lcounter.getsize(lcounter_length)
         else:
             rcountersize = self.lcounter.getsize(rcounter_length)
         return (
-            self.border.size[0] + lcountersize[0] + self.face.size[0] + rcountersize[0],
-            self.border.size[1] + max(lcountersize[1], self.face.size[1], rcountersize[1]),
+            lcountersize[0] + self.face.size[0] + rcountersize[0],
+            max(lcountersize[1], self.face.size[1], rcountersize[1]),
+        )
+    def getsize(self, lcounter_length=1, rcounter_length=None):
+        insize = self.getinsize(lcounter_length, rcounter_length)
+        return (
+            self.border.size[0] + insize[0],
+            self.border.size[1] + insize[1],
         )
     @property
     def size(self):
@@ -172,10 +184,16 @@ class CounterImages:
         self.border = BorderImages(os.path.join(image_dir, 'border'), os.path.join(default_image_dir, 'border'))
         self.digit =  DigitImages( os.path.join(image_dir, 'digit'),  os.path.join(default_image_dir, 'digit'))
 
-    def getsize(self, counter_length=1):
+    def getinsize(self, counter_length=1):
         return (
-            self.border.size[0] + self.digit.size[0] * counter_length,
-            self.border.size[1] + self.digit.size[1] * counter_length,
+            self.digit.size[0] * counter_length,
+            self.digit.size[1] * counter_length,
+        )
+    def getsize(self, counter_length=1):
+        insize = self.getinsize(counter_length)
+        return (
+            self.border.size[0] + insize[0],
+            self.border.size[1] + insize[1],
         )
     @property
     def size(self):
@@ -250,10 +268,16 @@ class BoardImages:
         self.border = BorderImages(os.path.join(image_dir, 'border'), os.path.join(default_image_dir, 'border'))
         self.tile =   TileImages(  os.path.join(image_dir, 'tile'),   os.path.join(default_image_dir, 'tile'))
 
-    def getsize(self, boardsize=(1,1)):
+    def getinsize(self, boardsize=(1,1)):
         return (
-            self.border.size[0] + self.tile.size[0] * boardsize[0],
-            self.border.size[1] + self.tile.size[1] * boardsize[1],
+            self.tile.size[0] * boardsize[0],
+            self.tile.size[1] * boardsize[1],
+        )
+    def getsize(self, boardsize=(1,1)):
+        insize = self.getinsize(boardsize)
+        return (
+            self.border.size[0] + insize[0],
+            self.border.size[1] + insize[1],
         )
     @property
     def size(self):
