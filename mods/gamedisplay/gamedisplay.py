@@ -343,17 +343,18 @@ class Board:
                 )
                 self.tiles[row][col] = Tile(self.displaycanvas, pos, self.boardimages.tile)
 
-        self.mapping = {
-            TileState.Mine:      'mine',
-            TileState.Blast:     'blast',
-            TileState.Flag:      'flag',
-            TileState.FlagWrong: 'flag_wrong',
-            TileState.Unopened:  'unopened',
-        }
-        for i in range(9):
-            self.mapping[TileState.Number[i]] = i
-
         self.shoulddraw = True
+        self.tileschanged = set((row, col) for col in range(self.boardsize[0]) for row in range(self.boardsize[1]))
+
+    def set_tile(self, index, tilestate):
+        """
+        index is a 2-tuple containing the row and col of the tile to be modified.
+        """
+        if self.state[index[0]][index[1]] != tilestate:
+            self.shoulddraw = True
+            self.state[index[0]][index[1]] = tilestate
+            self.tiles[index[0]][index[1]].set_tile(tilestate)
+            self.tileschanged.add((index[0], index[1]))
 
     def draw(self, force):
         if not (force or self.shoulddraw):
@@ -361,9 +362,10 @@ class Board:
         self.shoulddraw = False
         self.border.draw(force)
 
-        for col in range(self.boardsize[0]):
-            for row in range(self.boardsize[1]):
-                self.tiles[row][col].draw(force)
+        for row, col in self.tileschanged:
+            self.tiles[row][col].draw(force)
+
+        self.tileschanged = set()
 
 class Tile:
     def __init__(self, displaycanvas, position, tileimages):
@@ -384,6 +386,10 @@ class Tile:
             self.mapping[TileState.Number[i]] = i
 
         self.shoulddraw = True
+
+    def set_tile(self, tilestate):
+        self.shoulddraw = True
+        self.state = tilestate
 
     def draw(self, force):
         if not (force or self.shoulddraw):
