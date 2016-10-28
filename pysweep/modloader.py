@@ -116,7 +116,7 @@ def import_modules(module_path_dict):
                 loaded_at_least_one = True
                 modules_loaded.add(name)
                 print("done")
-            except ImportError:
+            except:
                 # It's possible it tried to import another mod that hasn't been imported.
                 # skip it first and try again later.
                 exceptions.append(traceback.format_exc())
