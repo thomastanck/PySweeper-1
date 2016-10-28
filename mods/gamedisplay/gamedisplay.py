@@ -155,14 +155,15 @@ class GridTile:
         self.img = img
         if self.imgsize == (1,1):
             self.pixel = img.getpixel((0,0))
+        elif self.imgsize[0] == 1:
+            self.pixel = None
+            self.resize = 'h'
+        elif self.imgsize[1] == 1:
+            self.pixel = None
+            self.resize = 'v'
         else:
             self.pixel = None
-            if self.imgsize[0] == 1:
-                self.resize = 'h'
-            elif self.imgsize[1] == 1:
-                self.resize = 'v'
-            else:
-                self.resize = None
+            self.resize = None
 
         self.shoulddraw = True
 
@@ -170,32 +171,7 @@ class GridTile:
         if not (force or self.shoulddraw):
             return
         self.shoulddraw = False
-        if self.pixel is None:
-            if self.resize == 'h':
-                for row in range(self.paste_amounts[1]):
-                    newsize = (self.paste_amounts[0], self.imgsize[1])
-                    pastepos = (
-                        self.position[0],
-                        self.position[1] + self.imgsize[1] * row,
-                    )
-                    self.displaycanvas.paste(self.img.resize(newsize), pastepos)
-            elif self.resize == 'v':
-                for col in range(self.paste_amounts[0]):
-                    newsize = (self.imgsize[0], self.paste_amounts[1])
-                    pastepos = (
-                        self.position[0] + self.imgsize[0] * col,
-                        self.position[1],
-                    )
-                    self.displaycanvas.paste(self.img.resize(newsize), pastepos)
-            else:
-                for col in range(self.paste_amounts[0]):
-                    for row in range(self.paste_amounts[1]):
-                        pastepos = (
-                            self.position[0] + self.imgsize[0] * col,
-                            self.position[1] + self.imgsize[1] * row,
-                        )
-                        self.displaycanvas.paste(self.img, pastepos)
-        else:
+        if self.pixel is not None:
             pastearea = (
                 self.position[0],
                 self.position[1],
@@ -203,6 +179,30 @@ class GridTile:
                 self.position[1] + self.paste_amounts[1],
             )
             self.displaycanvas.paste(self.pixel, pastearea)
+        elif self.resize == 'h':
+            for row in range(self.paste_amounts[1]):
+                newsize = (self.paste_amounts[0], self.imgsize[1])
+                pastepos = (
+                    self.position[0],
+                    self.position[1] + self.imgsize[1] * row,
+                )
+                self.displaycanvas.paste(self.img.resize(newsize), pastepos)
+        elif self.resize == 'v':
+            for col in range(self.paste_amounts[0]):
+                newsize = (self.imgsize[0], self.paste_amounts[1])
+                pastepos = (
+                    self.position[0] + self.imgsize[0] * col,
+                    self.position[1],
+                )
+                self.displaycanvas.paste(self.img.resize(newsize), pastepos)
+        else:
+            for col in range(self.paste_amounts[0]):
+                for row in range(self.paste_amounts[1]):
+                    pastepos = (
+                        self.position[0] + self.imgsize[0] * col,
+                        self.position[1] + self.imgsize[1] * row,
+                    )
+                    self.displaycanvas.paste(self.img, pastepos)
 
 class Border:
     """
