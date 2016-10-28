@@ -1,6 +1,6 @@
 class Event:
     def __init__(self):
-        self.node = None
+        self.pysweep_node = None
 
 class DictEvent(dict, Event):
     """

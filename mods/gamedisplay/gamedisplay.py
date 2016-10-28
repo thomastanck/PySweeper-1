@@ -8,6 +8,7 @@ from gamedisplay.event import DisplayEvent
 from gamedisplay.state import TileState, FaceState
 
 import pysweep.mod as mod
+from pysweep.event import Event
 
 class GameDisplay(mod.Mod):
     def __init__(self):
@@ -16,20 +17,66 @@ class GameDisplay(mod.Mod):
         self.FaceState = FaceState
 
         self.boardsize = (30, 16)
+        self.lcounterlength = 3
+        self.rcounterlength = 3
 
         self.images = DisplayImages('images')
-
-    def pysweep_before_finish_init(self):
-        """
-        Create the display.
-        """
-        self.displaycanvas = DisplayCanvas(self.pysweep.master, self.boardsize, 3, 3, self.images)
 
     def pysweep_finish_init(self):
         """
         Create and show the display on the screen.
         """
+        self.displaycanvas = DisplayCanvas(self.pysweep.master, self.boardsize, self.lcounterlength, self.rcounterlength, self.images)
         self.displaycanvas.pack()
+        # enode = self.arbitrary()
+        # print('DisplayCanvas:', enode)
+
+    # @mod.trigger
+    # def arbitrary(self):
+    #     return None, Event()
+
+    # @mod.listen('GameDisplay', 'arbitrary')
+    # def listener(self, event):
+    #     self.set_rcounter(event, 0)
+
+    def set_lcounter(self, event, value):
+        if self.displaycanvas.set_lcounter(value):
+            self.on_set_lcounter(event, value)
+            self.displaycanvas.draw()
+    def set_face(self, event, face):
+        if self.displaycanvas.set_face(face):
+            self.on_set_face(event, face)
+            self.displaycanvas.draw()
+    def set_rcounter(self, event, value):
+        if self.displaycanvas.set_rcounter(value):
+            self.on_set_rcounter(event, value)
+            self.displaycanvas.draw()
+    def set_tile(self, event, index, tile):
+        if self.displaycanvas.set_tile(index, tile):
+            self.on_set_tile(event, index, tile)
+            self.displaycanvas.draw()
+
+    def get_lcounter(self):
+        return self.displaycanvas.get_lcounter()
+    def get_face(self):
+        return self.displaycanvas.get_face()
+    def get_rcounter(self):
+        return self.displaycanvas.get_rcounter()
+    def get_tile(self, index):
+        return self.displaycanvas.get_tile(index)
+
+    @mod.trigger
+    def on_set_lcounter(self, event, value):
+        return event, DisplayEvent('lcounter', value)
+    @mod.trigger
+    def on_set_face(self, event, face):
+        return event, DisplayEvent('face', face)
+    @mod.trigger
+    def on_set_rcounter(self, event, value):
+        return event, DisplayEvent('rcounter', value)
+    @mod.trigger
+    def on_set_tile(self, event, index, tile):
+        return event, DisplayEvent('tile', index, tile)
 
 class DisplayCanvas(tkinter.Canvas):
     def __init__(self, master, boardsize, lcounterlength, rcounterlength, images):
@@ -55,22 +102,22 @@ class DisplayCanvas(tkinter.Canvas):
         # self.draw()
 
     def set_lcounter(self, value):
-        return self.panel.set_lcounter_value(value)
+        return self.display.set_lcounter(value)
     def set_face(self, face):
-        return self.panel.set_face(face)
+        return self.display.set_face(face)
     def set_rcounter(self, value):
-        return self.panel.set_rcounter_value(value)
+        return self.display.set_rcounter(value)
     def set_tile(self, index, tile):
-        return self.board.set_tile(index, tile)
+        return self.display.set_tile(index, tile)
 
-    def get_lcounter_value(self):
-        return self.panel.get_lcounter_value()
+    def get_lcounter(self):
+        return self.display.get_lcounter()
     def get_face(self):
-        return self.panel.get_face()
-    def get_rcounter_value(self):
-        return self.panel.get_rcounter_value()
+        return self.display.get_face()
+    def get_rcounter(self):
+        return self.display.get_rcounter()
     def get_tile(self, index):
-        return self.board.get_tile(index)
+        return self.display.get_tile(index)
 
     def paste(self, *args, **kwargs):
         self.img.paste(*args, **kwargs)
@@ -134,6 +181,24 @@ class Display:
             self.images.board.getsize(boardsize)[1],
         )
         self.board = Board(self.displaycanvas, boardpos, self.images.board, boardpixelsize, self.boardsize)
+
+    def set_lcounter(self, value):
+        return self.panel.set_lcounter(value)
+    def set_face(self, face):
+        return self.panel.set_face(face)
+    def set_rcounter(self, value):
+        return self.panel.set_rcounter(value)
+    def set_tile(self, index, tile):
+        return self.board.set_tile(index, tile)
+
+    def get_lcounter(self):
+        return self.panel.get_lcounter()
+    def get_face(self):
+        return self.panel.get_face()
+    def get_rcounter(self):
+        return self.panel.get_rcounter()
+    def get_tile(self, index):
+        return self.board.get_tile(index)
 
     def draw(self, force=False):
         self.panel.draw(force)

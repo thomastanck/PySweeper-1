@@ -5,3 +5,9 @@ class DisplayEvent(Event):
         Event.__init__(self)
         self.part = part
         self.args = args
+
+    def __str__(self):
+        return '{'+"part:'{}',args:{}".format(self.part, self.args)+'}'
+
+    def __repr__(self):
+        return str(self)
