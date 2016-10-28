@@ -136,7 +136,7 @@ def load_mods(name_module_dict):
         print("Loading mods in module: {}".format(modulename))
         class_list = [m for m in
             inspect.getmembers(module, predicate=inspect.isclass)
-            if m[1].__module__ == module.__name__]
+            if issubclass(m[1], pysweep.mod.Mod) and m[1] != pysweep.mod.Mod]
         for modname, modclass in class_list:
             ismod, missing = pysweep.mod.ismod(modclass)
             if not ismod:
