@@ -19,9 +19,6 @@ class GameDisplay(mod.Mod):
 
         self.images = DisplayImages('images')
 
-        self.face = FaceState.Happy
-        self.board = [[TileState.Unopened for i in range(self.boardsize[0])] for i in range(self.boardsize[1])]
-
     def pysweep_before_finish_init(self):
         """
         Create the display.
@@ -77,6 +74,15 @@ class DisplayCanvas(tkinter.Canvas):
         self.draw()
         # self.img.paste(Image.new(size=self.size, mode="RGB", color='blue'))
         # self.draw()
+
+    def set_lcounter_value(self, value):
+        return self.panel.set_lcounter_value(value)
+    def set_face(self, face):
+        return self.panel.set_face(face)
+    def set_rcounter_value(self, value):
+        return self.panel.set_rcounter_value(value)
+    def set_tile(self, index, tile):
+        return self.board.set_tile(index, tile)
 
     def paste(self, *args, **kwargs):
         self.img.paste(*args, **kwargs)
@@ -263,6 +269,13 @@ class Panel:
         )
         self.rcounter = Counter(self.displaycanvas, self.rcounterpos, self.panelimages.rcounter, rcounterlength)
 
+    def set_lcounter_value(self, value):
+        return self.lcounter.set_value(value)
+    def set_face(self, face):
+        return self.face.set_face(face)
+    def set_rcounter_value(self, value):
+        return self.rcounter.set_value(value)
+
     def draw(self, force):
         self.bg.draw(force)
         self.border.draw(force)
@@ -304,8 +317,10 @@ class Counter:
             else:
                 counterstr = '-'+'9'*(len(self.digits)-1)
         self.counterstr = counterstr
+        ret = False
         for i, c in enumerate(self.counterstr):
-            self.digits[i].set_value(c)
+            ret |= self.digits[i].set_value(c)
+        return ret
 
     def draw(self, force):
         self.border.draw(force)
@@ -332,6 +347,8 @@ class Digit:
         if self.state != self.mapping[value]:
             self.state = self.mapping[value]
             self.shoulddraw = True
+            return True
+        return False
 
     def draw(self, force):
         if not (force or self.shoulddraw):
@@ -355,6 +372,13 @@ class Face:
         }
 
         self.shoulddraw = True
+
+    def set_face(self, face):
+        if self.face != face:
+            self.face = face
+            self.shoulddraw = True
+            return True
+        return False
 
     def draw(self, force):
         if not (force or self.shoulddraw):
@@ -405,15 +429,17 @@ class Board:
         self.shoulddraw = True
         self.tileschanged = set((row, col) for col in range(self.boardsize[0]) for row in range(self.boardsize[1]))
 
-    def set_tile(self, index, tilestate):
+    def set_tile(self, index, tile):
         """
         index is a 2-tuple containing the row and col of the tile to be modified.
         """
-        if self.state[index[0]][index[1]] != tilestate:
+        if self.state[index[0]][index[1]] != tile:
             self.shoulddraw = True
-            self.state[index[0]][index[1]] = tilestate
-            self.tiles[index[0]][index[1]].set_tile(tilestate)
+            self.state[index[0]][index[1]] = tile
+            self.tiles[index[0]][index[1]].set_tile(tile)
             self.tileschanged.add((index[0], index[1]))
+            return True
+        return False
 
     def draw(self, force):
         if not (force or self.shoulddraw):
@@ -448,9 +474,9 @@ class Tile:
 
         self.shoulddraw = True
 
-    def set_tile(self, tilestate):
+    def set_tile(self, tile):
         self.shoulddraw = True
-        self.state = tilestate
+        self.state = tile
 
     def draw(self, force):
         if not (force or self.shoulddraw):
