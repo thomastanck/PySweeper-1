@@ -2,7 +2,7 @@
 Functions that load modules from directories
 """
 
-import os, imp, inspect
+import os, imp, inspect, traceback
 
 import pysweep.mod
 
@@ -107,6 +107,7 @@ def import_modules(module_path_dict):
     while modules_to_load:
         loaded_at_least_one = False
         modules_loaded = set()
+        exceptions = []
         for name in modules_to_load:
             try:
                 print("Importing: {} ... ".format(name), end="")
@@ -115,16 +116,19 @@ def import_modules(module_path_dict):
                 loaded_at_least_one = True
                 modules_loaded.add(name)
                 print("done")
-            except ImportError as e:
+            except ImportError:
                 # It's possible it tried to import another mod that hasn't been imported.
                 # skip it first and try again later.
-                failedexception = e
+                exceptions.append(traceback.format_exc())
                 print("skip")
                 continue
         if loaded_at_least_one:
             modules_to_load -= modules_loaded
         else:
-            raise failedexception
+            print("Failed modules: {}".format(modules_to_load))
+            for e in exceptions:
+                print(e)
+            break
     print()
     return name_module_dict
 
