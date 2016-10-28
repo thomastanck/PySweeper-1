@@ -13,17 +13,18 @@ class GameDisplay(mod.Mod):
         self.TileState = TileState
         self.FaceState = FaceState
 
-        self.size = (30, 16)
+        self.boardsize = (30, 16)
 
         self.images = DisplayImages('images')
 
-        self.board = [[TileState.Unopened for i in range(self.size[0])] for i in range(self.size[1])]
+        self.face = FaceState.Happy
+        self.board = [[TileState.Unopened for i in range(self.boardsize[0])] for i in range(self.boardsize[1])]
 
     def pysweep_before_finish_init(self):
         """
         Create the display.
         """
-        self.displaycanvas = DisplayCanvas(self.pysweep.master, self.size, self.images)
+        self.displaycanvas = DisplayCanvas(self.pysweep.master, self.boardsize, self.images)
 
     def pysweep_finish_init(self):
         """
@@ -32,16 +33,9 @@ class GameDisplay(mod.Mod):
         self.displaycanvas.pack()
 
 class DisplayCanvas(tkinter.Canvas):
-    def __init__(self, master, size, images):
-        self.boardsize = size
-        boardpixelsize = (
-            images.board.border.size[0]+images.board.tile.size[0]*size[0],
-            images.board.border.size[1]+images.board.tile.size[1]*size[1],
-        )
-        self.size = (
-            images.border.size[0]+boardpixelsize[0],
-            images.border.size[1]+boardpixelsize[1]+images.panel.size[1],
-        )
+    def __init__(self, master, boardsize, images):
+        self.boardsize = boardsize
+        self.size = images.getsize(boardsize)
 
         super().__init__(master, width=self.size[0], height=self.size[1], highlightthickness=0)
         self.img = Image.new(size=self.size, mode="RGB", color='green')

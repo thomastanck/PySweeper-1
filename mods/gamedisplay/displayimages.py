@@ -16,6 +16,17 @@ class DisplayImages:
         self.panel =  PanelImages( os.path.join(image_dir, 'panel'),  os.path.join(default_image_dir, 'panel'))
         self.board =  BoardImages( os.path.join(image_dir, 'board'),  os.path.join(default_image_dir, 'board'))
 
+    def getsize(self, boardsize=(1,1), lcounter_length=1, rcounter_length=None):
+        boardpixelsize = self.board.getsize(boardsize)
+        panelsize = self.panel.getsize(lcounter_length, rcounter_length)
+        return (
+            self.border.size[0] + max(boardpixelsize[0], panelsize[0]),
+            self.border.size[1] + boardpixelsize[1] + panelsize[1],
+        )
+    @property
+    def size(self):
+        return self.getsize()
+
 class BorderImages:
     """
     All the borders of a certain part.
