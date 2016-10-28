@@ -8,7 +8,7 @@ import functools
 
 from pysweep.event import EventNode
 
-def pysweep_listen(mod, trigger):
+def listen(mod, trigger):
     """
     Decorator for methods that need to be callable by other mods.
     """
@@ -21,7 +21,7 @@ def pysweep_listen(mod, trigger):
         return f
     return decorate
 
-def pysweep_trigger(f):
+def trigger(f):
     """
     Decorator for methods that need to trigger mods listening to this event.
 

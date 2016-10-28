@@ -1,13 +1,13 @@
-from pysweep.mod import Mod, pysweep_listen, pysweep_trigger
+import pysweep.mod as mod
 from pysweep.event import DictEvent
 
-class ListenerMod(Mod):
-    @pysweep_listen("TriggerMod", "trigger")
+class ListenerMod(mod.Mod):
+    @mod.listen("TriggerMod", "trigger")
     def listener(self, event):
         print("Zomg I've been triggered! Event: {}".format(event))
         self.managed_to_listen(event)
 
-    @pysweep_trigger
+    @mod.trigger
     def managed_to_listen(self, event):
         e = DictEvent(event)
         e['event2'] = 'I got the message, bro.'
