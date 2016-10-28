@@ -11,5 +11,3 @@ class TriggerMod(Mod):
     def trigger(self):
         print("I'm gonna trigger you so hard, listener!")
         return None, DictEvent(event='root cause')
-
-mods = {"TriggerMod": TriggerMod}

@@ -9,6 +9,6 @@ class ListenerMod(Mod):
 
     @pysweep_trigger
     def managed_to_listen(self, event):
-        return event, DictEvent(event='I got the message, bro.')
-
-mods = {"ListenerMod": ListenerMod}
+        e = DictEvent(event)
+        e['event2'] = 'I got the message, bro.'
+        return event, e

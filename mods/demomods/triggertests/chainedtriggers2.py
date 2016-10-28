@@ -38,5 +38,3 @@ class ChainMod2(Mod):
         print("D", self.counter)
         self.counter += 1
         return event, DictEvent(event="D", counter=self.counter, parentcounter=event['counter'])
-
-mods = {"ChainMod2": ChainMod2}
