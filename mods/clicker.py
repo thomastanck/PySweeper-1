@@ -29,6 +29,31 @@ class Action:
     class M: pass
     class U: pass
 
+class ButtonAction:
+    class D: pass
+    class M: pass
+    class U: pass
+    class LD: pass
+    class LM: pass
+    class LU: pass
+    class MD: pass
+    class MM: pass
+    class MU: pass
+    class RD: pass
+    class RM: pass
+    class RU: pass
+
+    @classmethod
+    def from_button_action(cls, button, action):
+        if action == Action.D:
+            return (cls.D, cls.LD, cls.MD, cls.RD)[button.n+1]
+        elif action == Action.M:
+            return (cls.M, cls.LM, cls.MM, cls.RM)[button.n+1]
+        elif action == Action.U:
+            return (cls.U, cls.LU, cls.MU, cls.RU)[button.n+1]
+        else:
+            raise ValueError('Invalid button/action combination ({}, {})'.format(button, action))
+
 class InputType:
     class Keyboard: pass
     class Mouse: pass
@@ -37,6 +62,7 @@ class ClickerEvent(Event):
     def __init__(self, button, action, root_position, state):
         self.button = button
         self.action = action
+        self.buttonaction = ButtonAction.from_button_action(self.button, self.action)
         self.root_position = root_position
         self.state = state
 
