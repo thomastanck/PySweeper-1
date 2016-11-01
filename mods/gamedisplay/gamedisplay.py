@@ -7,6 +7,7 @@ from gamedisplay.displayimages import DisplayImages
 from gamedisplay.event import DisplayEvent
 from gamedisplay.state import TileState, FaceState
 
+import pysweep.pos as pos
 import pysweep.mod as mod
 # from pysweep.event import Event
 
@@ -25,9 +26,17 @@ class GameDisplay(mod.Mod):
     def pysweep_finish_init(self):
         """
         Create and show the display on the screen.
+
+        After that, obtain the positions for all the parts in the display so
+        other mods (namely ClickManager) can figure out where mouse events
+        are.
         """
         self.displaycanvas = DisplayCanvas(self.pysweep.master, self.boardsize, self.lcounterlength, self.rcounterlength, self.images)
         self.displaycanvas.pack()
+
+        self.pysweep.master.update_idletasks()
+        self.displaycanvas.update_idletasks()
+        self.part = self.displaycanvas.get_part()
         # enode = self.arbitrary()
         # print('DisplayCanvas:', enode)
 
@@ -91,15 +100,19 @@ class DisplayCanvas(tkinter.Canvas):
 
         self.update_queued = False
 
-        self.img = Image.new(size=self.size, mode="RGB", color='green')
+        self.img = Image.new(size=self.size, mode="RGBA", color='green')
         self.tkimg = ImageTk.PhotoImage(self.img)
         self.create_image(0, 0, image=self.tkimg, anchor='nw')
 
         self.display = Display(self, (0, 0), boardsize, lcounterlength, rcounterlength, images)
 
         self.draw()
-        # self.img.paste(Image.new(size=self.size, mode="RGB", color='blue'))
+        # self.img.paste(Image.new(size=self.size, mode="RGBA", color='blue'))
         # self.draw()
+
+    def get_part(self):
+        self.part = self.display.get_part(None)
+        return self.part
 
     def set_lcounter(self, value):
         return self.display.set_lcounter(value)
@@ -119,8 +132,11 @@ class DisplayCanvas(tkinter.Canvas):
     def get_tile(self, index):
         return self.display.get_tile(index)
 
-    def paste(self, *args, **kwargs):
-        self.img.paste(*args, **kwargs)
+    def paste(self, img, pos):
+        self.img.paste(img, pos, img)
+        self.update()
+    def paste_pixel(self, col, pos):
+        self.img.paste(col, pos)
         self.update()
 
     def draw(self, force=False):
@@ -181,6 +197,12 @@ class Display:
             self.images.board.getsize(boardsize)[1],
         )
         self.board = Board(self.displaycanvas, boardpos, self.images.board, boardpixelsize, self.boardsize)
+
+    def get_part(self, parent):
+        self.part = pos.Part('Display', parent, self.position, self.size)
+        self.part.add_child(self.panel.get_part(self.part))
+        self.part.add_child(self.board.get_part(self.part))
+        return self.part
 
     def set_lcounter(self, value):
         return self.panel.set_lcounter(value)
@@ -243,7 +265,7 @@ class GridTile:
                 self.position[0] + self.paste_amounts[0],
                 self.position[1] + self.paste_amounts[1],
             )
-            self.displaycanvas.paste(self.pixel, pastearea)
+            self.displaycanvas.paste_pixel(self.pixel, pastearea)
         elif self.resize == 'h':
             for row in range(self.paste_amounts[1]):
                 newsize = (self.paste_amounts[0], self.imgsize[1])
@@ -358,6 +380,17 @@ class Panel:
         )
         self.rcounter = Counter(self.displaycanvas, self.rcounterpos, self.panelimages.rcounter, rcounterlength)
 
+    def get_part(self, parent):
+        self.part = pos.Part('Panel', parent, self.position, self.size)
+        lcounter = self.lcounter.get_part(self.part)
+        lcounter.name = 'LCounter'
+        self.part.add_child(lcounter)
+        self.part.add_child(self.face.get_part(self.part))
+        rcounter = self.rcounter.get_part(self.part)
+        rcounter.name = 'RCounter'
+        self.part.add_child(rcounter)
+        return self.part
+
     def set_lcounter(self, value):
         return self.lcounter.set_value(value)
     def set_face(self, face):
@@ -404,6 +437,10 @@ class Counter:
 
         self.set_value(0)
         self.shoulddraw = True
+
+    def get_part(self, parent):
+        self.part = pos.Part('Counter', parent, self.position, self.size)
+        return self.part
 
     def set_value(self, value):
         counterstr = ("{:>"+str(self.counterlength)+"}").format(value)
@@ -472,6 +509,13 @@ class Face:
 
         self.shoulddraw = True
 
+    def get_part(self, parent):
+        self.part = pos.Part('Face', parent, self.position, self.size)
+        self.part.add_child(self.lcounter.get_part(self.part))
+        self.part.add_child(self.face.get_part(self.part))
+        self.part.add_child(self.rcounter.get_part(self.part))
+        return self.part
+
     def set_face(self, face):
         if self.face != face:
             self.face = face
@@ -530,6 +574,10 @@ class Board:
 
         self.shoulddraw = True
         self.tileschanged = set((row, col) for col in range(self.boardsize[0]) for row in range(self.boardsize[1]))
+
+    def get_part(self, parent):
+        self.part = pos.Part('Board', parent, self.position, self.size)
+        return self.part
 
     def set_tile(self, index, tile):
         """
