@@ -1,4 +1,5 @@
 import math
+from collections import OrderedDict
 
 from PIL import Image, ImageTk
 import tkinter
@@ -23,7 +24,7 @@ class GameDisplay(mod.Mod):
 
         self.images = DisplayImages('images')
 
-    def pysweep_finish_init(self):
+    def pysweep_before_finish_init(self):
         """
         Create and show the display on the screen.
 
@@ -36,7 +37,6 @@ class GameDisplay(mod.Mod):
 
         self.pysweep.master.update_idletasks()
         self.displaycanvas.update_idletasks()
-        self.part = self.displaycanvas.get_part()
         # enode = self.arbitrary()
         # print('DisplayCanvas:', enode)
 
@@ -104,15 +104,11 @@ class DisplayCanvas(tkinter.Canvas):
         self.tkimg = ImageTk.PhotoImage(self.img)
         self.create_image(0, 0, image=self.tkimg, anchor='nw')
 
-        self.display = Display(self, (0, 0), boardsize, lcounterlength, rcounterlength, images)
+        self.display = Display.new(self, (0, 0), images, boardsize, lcounterlength, rcounterlength)
 
         self.draw()
         # self.img.paste(Image.new(size=self.size, mode="RGBA", color='blue'))
         # self.draw()
-
-    def get_part(self):
-        self.part = self.display.get_part(None)
-        return self.part
 
     def set_lcounter(self, value):
         return self.display.set_lcounter(value)
@@ -165,100 +161,136 @@ class DisplayCanvas(tkinter.Canvas):
         self.update_queued = False
         self.tkimg.paste(self.img)
 
-class Display:
-    def __init__(self, displaycanvas, position, boardsize, lcounterlength, rcounterlength, images):
+class Part:
+    """
+    Parent class for all the parts. This class stores the position, and sizes of
+    itself, as well as an dict of its children. The classes which actually
+    draw stuff will inherit this class.
+
+    The only exception is Border, which is actually a group of 8 GridTile parts.
+    Since that's the only case where parts don't nest nicely, I've decided not
+    to make a separate class for groups of parts and just have Border return
+    its children in an array.
+    """
+    def __init__(self, displaycanvas, position, size):
         self.displaycanvas = displaycanvas
         self.position = position
-        self.boardsize = boardsize
-        self.lcounterlength = lcounterlength
-        self.rcounterlength = rcounterlength
-        self.images = images
-        self.size = self.images.getsize(boardsize, lcounterlength, rcounterlength)
+        self.size = size
 
-        maininsize = self.images.getinsize(boardsize, lcounterlength, rcounterlength)
-        self.border = Border(self.displaycanvas, (0, 0), self.images.getsize(boardsize, lcounterlength, rcounterlength), self.images.border)
+        self.ignore = False # If set to true, then this will not be included in
+                            # a get_part_containing search.
 
-        panelpos = (
-            self.images.border.thickness[1],
-            self.images.border.thickness[0],
-        )
-        panelsize = (
-            maininsize[0],
-            self.images.panel.getsize(lcounterlength, rcounterlength)[1],
-        )
-        self.panel = Panel(self.displaycanvas, panelpos, panelsize, self.images.panel, lcounterlength, rcounterlength)
-
-        boardpos = (
-            self.images.border.thickness[1],
-            self.images.border.thickness[0] + panelsize[1],
-        )
-        boardpixelsize = (
-            maininsize[0],
-            self.images.board.getsize(boardsize)[1],
-        )
-        self.board = Board(self.displaycanvas, boardpos, self.images.board, boardpixelsize, self.boardsize)
-
-    def get_part(self, parent):
-        self.part = pos.Part('Display', parent, self.position, self.size)
-        self.part.add_child(self.panel.get_part(self.part))
-        self.part.add_child(self.board.get_part(self.part))
-        return self.part
-
-    def set_lcounter(self, value):
-        return self.panel.set_lcounter(value)
-    def set_face(self, face):
-        return self.panel.set_face(face)
-    def set_rcounter(self, value):
-        return self.panel.set_rcounter(value)
-    def set_tile(self, index, tile):
-        return self.board.set_tile(index, tile)
-
-    def get_lcounter(self):
-        return self.panel.get_lcounter()
-    def get_face(self):
-        return self.panel.get_face()
-    def get_rcounter(self):
-        return self.panel.get_rcounter()
-    def get_tile(self, index):
-        return self.board.get_tile(index)
+        # We use a collections.OrderedDict because we want to redraw parts
+        # in a certain order. The best way is probably to retain the order
+        # they were inserted so that the subclasses can choose the redraw order.
+        self.children = OrderedDict()
 
     def draw(self, force=False):
-        self.panel.draw(force)
-        self.board.draw(force)
-        self.border.draw(force)
+        """
+        Call this to trigger an update (lazily)
+        Call with True to force a redraw of all its children
+        """
+        for child in self.children.values():
+            child.draw(force)
 
-class GridTile:
+    def contains(self, coord):
+        """
+        Returns True if the coord is in Part or any of its children.
+        May be a better idea to call the get_part_containing function instead
+        though, which returns the lowest level Part that contains the coord
+        (none of its children contain the coord, but the Part does)
+        """
+        # print(coord, self.position, self.size)
+        return (0 <= coord[0] - self.position[0] < self.size[0] and
+                0 <= coord[1] - self.position[1] < self.size[1])
+
+    def get_part_containing(self, coord):
+        """
+        Returns the lowest Part that contains the coord (a part that contains
+        the coord where none of its children contain the coord)
+
+        *** Assumes that self already contains coord! Please check this if you
+        are not sure! ***
+        """
+        # print('in', self)
+        for k, child in self.children.items():
+            # print('try', k, child)
+            if child.ignore:
+                # print('ignore', k, child)
+                continue
+            if child.contains(coord):
+                # print('contained', k, child)
+                return child.get_part_containing(coord)
+        # Could not find any children containing the coord, so we must be at the
+        # lowest level already
+        return self
+
+class Drawable(Part):
     """
-    Repeatedly pastes an image a number of times in two directions.
-
-    paste_amounts is a 2-tuple containing the number of times to paste in the x
-    and y directions respectively.
+    Parent class for all parts that actually do drawing as opposed to internal
+    parts in the parts tree (such as Panel, which only handles its children but
+    does not actually draw anything)
     """
-    def __init__(self, displaycanvas, position, paste_amounts, img):
-        self.displaycanvas = displaycanvas
-        self.position = position
-        self.paste_amounts = paste_amounts
-        self.imgsize = img.size
-        self.img = img
-        if self.imgsize == (1,1):
-            self.pixel = img.getpixel((0,0))
-        elif self.imgsize[0] == 1:
-            self.pixel = None
-            self.resize = 'h'
-        elif self.imgsize[1] == 1:
-            self.pixel = None
-            self.resize = 'v'
-        else:
-            self.pixel = None
-            self.resize = None
-
+    def __init__(self, displaycanvas, position, size):
+        Part.__init__(self, displaycanvas, position, size)
         self.shoulddraw = True
 
     def draw(self, force):
-        if not (force or self.shoulddraw):
-            return
-        self.shoulddraw = False
-        if self.pixel is not None:
+        if self.shoulddraw or force:
+            self.shoulddraw = False
+            self._draw()
+    def _draw(self):
+        raise NotImplementedError("_draw must be imlemented for all Drawable's.")
+
+class GridTile(Drawable):
+    """
+    Repeatedly pastes an image a number of times in two directions.
+
+    It will try to paste the image to fit the size provided, but if size isn't
+    divisible by the image dimensions, it will overflow.
+    """
+    class PasteType:
+        class Pixel: pass # Optimisation for when the image itself is 1x1
+        class Once: pass # Optimisation for when image is as big/bigger than the paste size
+        class Horz: pass # Optimisation for when image is 1xh (resize width)
+        class Vert: pass # Optimisation for when image is wx1 (resize height)
+        class Tile: pass # The usual
+
+    def __init__(self, displaycanvas, position, size, img):
+        Drawable.__init__(self, displaycanvas, position, size)
+
+        PasteType = GridTile.PasteType
+
+        self.img = img
+
+        imgsize = self.img.size
+        self.imgsize = imgsize
+
+        self.paste_amounts = (
+            math.ceil(size[0] / imgsize[0]),
+            math.ceil(size[1] / imgsize[1]),
+        )
+
+        if imgsize == (1, 1):
+            self.pastetype = PasteType.Pixel
+            self.pixel = img.getpixel((0,0))
+        elif imgsize[0] >= size[0] and imgsize[1] >= size[1]:
+            self.pastetype = PasteType.Once
+        elif imgsize[0] == 1:
+            self.pastetype = PasteType.Horz
+            newsize = (self.paste_amounts[0], imgsize[1])
+            self.img = self.img.resize(newsize)
+        elif imgsize[1] == 1:
+            self.pastetype = PasteType.Vert
+            newsize = (imgsize[0], self.paste_amounts[1])
+            self.img = self.img.resize(newsize)
+        else:
+            self.pastetype = PasteType.Tile
+
+    def _draw(self):
+        PasteType = GridTile.PasteType
+
+        if self.pastetype == PasteType.Pixel:
             pastearea = (
                 self.position[0],
                 self.position[1],
@@ -266,22 +298,22 @@ class GridTile:
                 self.position[1] + self.paste_amounts[1],
             )
             self.displaycanvas.paste_pixel(self.pixel, pastearea)
-        elif self.resize == 'h':
+        elif self.pastetype == PasteType.Once:
+            self.displaycanvas.paste(self.img, self.position)
+        elif self.pastetype == PasteType.Horz:
             for row in range(self.paste_amounts[1]):
-                newsize = (self.paste_amounts[0], self.imgsize[1])
                 pastepos = (
                     self.position[0],
                     self.position[1] + self.imgsize[1] * row,
                 )
-                self.displaycanvas.paste(self.img.resize(newsize), pastepos)
-        elif self.resize == 'v':
+                self.displaycanvas.paste(self.img, pastepos)
+        elif self.pastetype == PasteType.Vert:
             for col in range(self.paste_amounts[0]):
-                newsize = (self.imgsize[0], self.paste_amounts[1])
                 pastepos = (
                     self.position[0] + self.imgsize[0] * col,
                     self.position[1],
                 )
-                self.displaycanvas.paste(self.img.resize(newsize), pastepos)
+                self.displaycanvas.paste(self.img, pastepos)
         else:
             for col in range(self.paste_amounts[0]):
                 for row in range(self.paste_amounts[1]):
@@ -295,152 +327,236 @@ class Border:
     """
     Draws a box border using the 8 images provided.
     """
-    def __init__(self, displaycanvas, position, size, borderimages):
-        self.displaycanvas = displaycanvas
-        self.position = position
-        self.size = size
-        self.borderimages = borderimages
+    def __init__(self, displaycanvas, position, size, images):
+        self.parts = {}
 
-        self.shoulddraw = True
-
-    def draw(self, force):
-        if not (force or self.shoulddraw):
-            return
-        self.shoulddraw = False
-        self.insize = (
-            self.size[0] - self.borderimages.size[0],
-            self.size[1] - self.borderimages.size[1],
+        insize = (
+            size[0] - images.size[0],
+            size[1] - images.size[1],
         )
 
-        th, lw, _, _ = self.borderimages.thickness
+        th, lw, rw, bh = images.thickness
 
         # Edges
         guide = {
-            't': [(self.position[0] + lw + 0,              self.position[1] + 0),                   (math.ceil(self.insize[0] / self.borderimages.i['t'].size[0]), 1)],
-            'b': [(self.position[0] + lw + 0,              self.position[1] + th + self.insize[1]), (math.ceil(self.insize[0] / self.borderimages.i['b'].size[0]), 1)],
-            'l': [(self.position[0] + 0,                   self.position[1] + th + 0),              (1, math.ceil(self.insize[1] / self.borderimages.i['l'].size[1]))],
-            'r': [(self.position[0] + lw + self.insize[0], self.position[1] + th + 0),              (1, math.ceil(self.insize[1] / self.borderimages.i['r'].size[1]))],
+            't': [(position[0] + lw + 0,         position[1] + 0),              (math.ceil(insize[0] / images.i['t'].size[0]), th)],
+            'b': [(position[0] + lw + 0,         position[1] + th + insize[1]), (math.ceil(insize[0] / images.i['b'].size[0]), bh)],
+            'l': [(position[0] + 0,              position[1] + th + 0),         (lw, math.ceil(insize[1] / images.i['l'].size[1]))],
+            'r': [(position[0] + lw + insize[0], position[1] + th + 0),         (rw, math.ceil(insize[1] / images.i['r'].size[1]))],
         }
         for k, v in guide.items():
-            GridTile(self.displaycanvas, v[0], v[1], self.borderimages.i[k]).draw(force)
+            self.parts[k] = GridTile(displaycanvas, v[0], v[1], images.i[k])
 
         # Corners
         guide = {
-            'tl': (self.position[0] + 0,                   self.position[1] + 0),
-            'tr': (self.position[0] + lw + self.insize[0], self.position[1] + 0),
-            'bl': (self.position[0] + 0,                   self.position[1] + th + self.insize[1]),
-            'br': (self.position[0] + lw + self.insize[0], self.position[1] + th + self.insize[1]),
+            'tl': (position[0] + 0,              position[1] + 0),
+            'tr': (position[0] + lw + insize[0], position[1] + 0),
+            'bl': (position[0] + 0,              position[1] + th + insize[1]),
+            'br': (position[0] + lw + insize[0], position[1] + th + insize[1]),
         }
         for k, v in guide.items():
-            self.displaycanvas.paste(self.borderimages.i[k], v)
+            self.parts[k] = GridTile(displaycanvas, v, images.i[k].size, images.i[k])
 
-class Panel:
-    def __init__(self, displaycanvas, position, size, panelimages, lcounterlength, rcounterlength):
-        self.displaycanvas = displaycanvas
-        self.position = position
-        self.size = size
-        self.panelimages = panelimages
+class Display(Part):
+    """
+    The part representing the entire display. To draw the entire pysweeper
+    display onto a canvas, just instantiate this class with a PIL image, and
+    then call display.draw() to trigger all the pastes.
+    """
+    @classmethod
+    def new(cls, displaycanvas, position, images, boardsize=(30, 16), lcounterlength=3, rcounterlength=3):
+        size = images.getsize(boardsize, lcounterlength, rcounterlength)
+        return cls(displaycanvas, position, size, images, boardsize, lcounterlength, rcounterlength)
 
-        self.insize = (
-            self.size[0] - self.panelimages.border.size[0],
-            self.size[1] - self.panelimages.border.size[1],
+    def __init__(self, displaycanvas, position, size, images, boardsize, lcounterlength, rcounterlength):
+        Part.__init__(self, displaycanvas, position, size)
+        self.images = images
+        self.boardsize = boardsize
+        self.lcounterlength = lcounterlength
+        self.rcounterlength = rcounterlength
+
+        # Takes the max of the panel width and board width.
+        displaywidth = self.images.getinsize(self.boardsize, self.lcounterlength, self.rcounterlength)[0]
+
+        # Position/size of border
+        borderpos = self.position
+        bordersize = self.size
+
+        # Position/size of panel
+        panelpos = (
+            position[0] + self.images.border.thickness[1],
+            position[1] + self.images.border.thickness[0],
+        )
+        panelsize = (
+            displaywidth,
+            self.images.panel.getsize(lcounterlength, rcounterlength)[1],
         )
 
-        self.bganchor = (
+        # Position/size of board
+        boardpos = (
+            position[0] + self.images.border.thickness[1],
+            position[1] + self.images.border.thickness[0] + panelsize[1],
+        )
+        boardpixelsize = (
+            displaywidth,
+            self.images.board.getsize(boardsize)[1],
+        )
+
+        border = Border(self.displaycanvas, borderpos, bordersize, self.images.border)
+        panel = Panel(self.displaycanvas, panelpos, panelsize, self.images.panel, self.lcounterlength, self.rcounterlength)
+        board = Board(self.displaycanvas, boardpos, boardpixelsize, self.images.board, self.boardsize)
+
+        for k, v in border.parts.items():
+            self.children[k] = v
+        self.children['panel'] = panel
+        self.children['board'] = board
+
+class Panel(Part):
+    def __init__(self, displaycanvas, position, size, images, lcounterlength, rcounterlength):
+        Part.__init__(self, displaycanvas, position, size)
+        self.images = images
+        self.lcounterlength = lcounterlength
+        self.rcounterlength = rcounterlength
+
+        insize = (
+            self.size[0] - self.images.border.size[0],
+            self.size[1] - self.images.border.size[1],
+        )
+
+        # Background
+        bganchor = (
             self.position[0] + self.size[0] // 2,
-            self.position[1] + self.panelimages.border.thickness[0],
+            self.position[1] + self.images.border.thickness[0],
         )
-        self.bgamount = (
-            math.ceil(self.insize[0] / self.panelimages.bg.size[0]),
-            math.ceil(self.insize[1] / self.panelimages.bg.size[1]),
+        bgsize = (
+            self.size[0] - self.images.border.size[0],
+            self.size[1] - self.images.border.size[1],
         )
-        self.bgpos = (
-            self.bganchor[0] - self.bgamount[0] * self.panelimages.bg.size[0] // 2,
-            self.bganchor[1],
+        bgamount = (
+            math.ceil(insize[0] / self.images.bg.size[0]),
+            math.ceil(insize[1] / self.images.bg.size[1]),
         )
-        self.bg = GridTile(self.displaycanvas, self.bgpos, self.bgamount, self.panelimages.bg)
-
-        self.border = Border(self.displaycanvas, self.position, self.size, self.panelimages.border)
-
-        self.lcounterpos = (
-            self.position[0] + self.panelimages.border.thickness[1],
-            self.position[1] + self.panelimages.border.thickness[0],
+        bgpos = (
+            bganchor[0] - bgamount[0] * self.images.bg.size[0] // 2,
+            bganchor[1],
         )
-        self.lcounter = Counter(self.displaycanvas, self.lcounterpos, self.panelimages.lcounter, lcounterlength)
 
-        self.facepos = (
-            self.position[0] + (self.size[0] - self.panelimages.face.size[0]) // 2,
-            self.position[1] + self.panelimages.border.thickness[0],
+        # Border
+        borderpos = self.position
+        bordersize = self.size
+
+        # Left counter
+        lcounterpos = (
+            self.position[0] + self.images.border.thickness[1],
+            self.position[1] + self.images.border.thickness[0],
         )
-        self.face = Face(self.displaycanvas, self.facepos, self.panelimages.face)
 
-        self.rcounterpos = (
-            self.position[0] + self.size[0] - self.panelimages.border.thickness[2] - self.panelimages.rcounter.getsize(rcounterlength)[0],
-            self.position[1] + self.panelimages.border.thickness[0],
+        # Face
+        facepos = (
+            self.position[0] + (self.size[0] - self.images.face.size[0]) // 2,
+            self.position[1] + self.images.border.thickness[0],
         )
-        self.rcounter = Counter(self.displaycanvas, self.rcounterpos, self.panelimages.rcounter, rcounterlength)
 
-    def get_part(self, parent):
-        self.part = pos.Part('Panel', parent, self.position, self.size)
-        lcounter = self.lcounter.get_part(self.part)
-        lcounter.name = 'LCounter'
-        self.part.add_child(lcounter)
-        self.part.add_child(self.face.get_part(self.part))
-        rcounter = self.rcounter.get_part(self.part)
-        rcounter.name = 'RCounter'
-        self.part.add_child(rcounter)
-        return self.part
+        # Right counter
+        rcounterpos = (
+            self.position[0] + self.size[0] - self.images.border.thickness[2] - self.images.rcounter.getsize(rcounterlength)[0],
+            self.position[1] + self.images.border.thickness[0],
+        )
 
-    def set_lcounter(self, value):
-        return self.lcounter.set_value(value)
-    def set_face(self, face):
-        return self.face.set_face(face)
-    def set_rcounter(self, value):
-        return self.rcounter.set_value(value)
+        bg = GridTile(self.displaycanvas, bgpos, bgsize, self.images.bg)
+        border = Border(self.displaycanvas, borderpos, bordersize, self.images.border)
+        lcounter = Counter.new(self.displaycanvas, lcounterpos, self.images.lcounter, lcounterlength)
+        face = Face.new(self.displaycanvas, facepos, self.images.face)
+        rcounter = Counter.new(self.displaycanvas, rcounterpos, self.images.rcounter, rcounterlength)
 
-    def get_lcounter(self):
-        return self.lcounter.get_value()
-    def get_face(self):
-        return self.face.get_face()
-    def get_rcounter(self):
-        return self.rcounter.get_value()
+        bg.ignore = True
+        self.children['bg'] = bg
+        for k, v in border.parts.items():
+            self.children[k] = v
+        self.children['lcounter'] = lcounter
+        self.children['face'] = face
+        self.children['rcounter'] = rcounter
 
-    def draw(self, force):
-        self.bg.draw(force)
-        self.border.draw(force)
-        self.lcounter.draw(force)
-        self.face.draw(force)
-        self.rcounter.draw(force)
+class Board(Part):
+    def __init__(self, displaycanvas, position, size, images, boardsize):
+        Part.__init__(self, displaycanvas, position, size)
+        self.images = images
+        self.boardsize = boardsize
 
-class Counter:
-    def __init__(self, displaycanvas, position, counterimages, counterlength):
-        self.displaycanvas = displaycanvas
-        self.position = position
-        self.counterimages = counterimages
+        insize = self.images.getinsize(boardsize)
+
+        # Background
+        bganchor = (
+            self.position[0] + self.size[0] // 2,
+            self.position[1] + self.images.border.thickness[0],
+        )
+        bgsize = (
+            self.size[0] - self.images.border.size[0],
+            self.size[1] - self.images.border.size[1],
+        )
+        bgamount = (
+            math.ceil(insize[0] / self.images.bg.size[0]),
+            math.ceil(insize[1] / self.images.bg.size[1]),
+        )
+        bgpos = (
+            bganchor[0] - bgamount[0] * self.images.bg.size[0] // 2,
+            bganchor[1],
+        )
+
+        # Border
+        borderpos = self.position
+        bordersize = self.size
+
+        # Board
+        boardpos = (
+            self.position[0] + self.images.border.thickness[1] + (self.size[0] - self.images.getsize(self.boardsize)[0]) // 2,
+            self.position[1] + self.images.border.thickness[0],
+        )
+
+        bg = GridTile(self.displaycanvas, bgpos, bgsize, self.images.bg)
+        border = Border(self.displaycanvas, borderpos, bordersize, self.images.border)
+        tiles = BoardTiles(self.displaycanvas, boardpos, insize, self.images.tile, self.boardsize)
+
+        bg.ignore = True
+        self.children['bg'] = bg
+        for k, v in border.parts.items():
+            self.children[k] = v
+        self.children['tiles'] = tiles
+
+class Counter(Part):
+    @classmethod
+    def new(cls, displaycanvas, position, images, counterlength):
+        size = images.getsize(counterlength)
+        return cls(displaycanvas, position, size, images, counterlength)
+
+    def __init__(self, displaycanvas, position, size, images, counterlength):
+        Part.__init__(self, displaycanvas, position, size)
+        self.images = images
         self.counterlength = counterlength
 
-        self.size = (
-            self.counterimages.border.size[0] + self.counterimages.digit.size[0] * counterlength,
-            self.counterimages.border.size[1] + self.counterimages.digit.size[1],
-        )
+        # Border
+        borderpos = self.position
+        bordersize = self.size
 
-        self.border = Border(self.displaycanvas, self.position, self.size, self.counterimages.border)
-        self.digitpos = []
+        self.border = Border(self.displaycanvas, borderpos, bordersize, self.images.border)
         self.digits = []
         for i in range(counterlength):
             digitpos = (
-                self.position[0] + self.counterimages.border.thickness[1] + self.counterimages.digit.size[0] * i,
-                self.position[1] + self.counterimages.border.thickness[0],
+                self.position[0] + self.images.border.thickness[1] + self.images.digit.size[0] * i,
+                self.position[1] + self.images.border.thickness[0],
             )
-            self.digitpos.append(digitpos)
-            self.digits.append(Digit(self.displaycanvas, digitpos, self.counterimages.digit))
+            self.digits.append(Digit.new(self.displaycanvas, digitpos, self.images.digit))
 
         self.set_value(0)
-        self.shoulddraw = True
+        # Don't add digits to children, so if Part.get_part_containing(self, coord)
+        # is called, the search stops here and Counter is returned.
 
-    def get_part(self, parent):
-        self.part = pos.Part('Counter', parent, self.position, self.size)
-        return self.part
+    def draw(self, force=False):
+        for borderpart in self.border.parts.values():
+            borderpart.draw(force)
+        for digit in self.digits:
+            digit.draw(force)
+        self.tileschanged = set()
 
     def set_value(self, value):
         counterstr = ("{:>"+str(self.counterlength)+"}").format(value)
@@ -458,16 +574,16 @@ class Counter:
     def get_value(self):
         return counterstr
 
-    def draw(self, force):
-        self.border.draw(force)
-        for digit in self.digits:
-            digit.draw(force)
 
-class Digit:
-    def __init__(self, displaycanvas, position, digitimages):
-        self.displaycanvas = displaycanvas
-        self.position = position
-        self.digitimages = digitimages
+class Digit(Drawable):
+    @classmethod
+    def new(cls, displaycanvas, position, images):
+        size = images.size
+        return cls(displaycanvas, position, size, images)
+
+    def __init__(self, displaycanvas, position, size, images):
+        Drawable.__init__(self, displaycanvas, position, size)
+        self.images = images
 
         self.mapping = {
             ' ': 'off',
@@ -477,7 +593,6 @@ class Digit:
             self.mapping[str(i)] = i
 
         self.state = 0
-        self.shoulddraw = True
 
     def set_value(self, value):
         if self.state != self.mapping[value]:
@@ -486,17 +601,18 @@ class Digit:
             return True
         return False
 
-    def draw(self, force):
-        if not (force or self.shoulddraw):
-            return
-        self.shoulddraw = False
-        self.displaycanvas.paste(self.digitimages.i[self.state], self.position)
+    def _draw(self):
+        self.displaycanvas.paste(self.images.i[self.state], self.position)
 
-class Face:
-    def __init__(self, displaycanvas, position, faceimages):
-        self.displaycanvas = displaycanvas
-        self.position = position
-        self.faceimages = faceimages
+class Face(Drawable):
+    @classmethod
+    def new(cls, displaycanvas, position, images):
+        size = images.size
+        return cls(displaycanvas, position, size, images)
+
+    def __init__(self, displaycanvas, position, size, images):
+        Drawable.__init__(self, displaycanvas, position, size)
+        self.images = images
         self.face = FaceState.Happy
 
         self.mapping = {
@@ -506,15 +622,6 @@ class Face:
             FaceState.Cool:    'cool',
             FaceState.Nervous: 'nervous',
         }
-
-        self.shoulddraw = True
-
-    def get_part(self, parent):
-        self.part = pos.Part('Face', parent, self.position, self.size)
-        self.part.add_child(self.lcounter.get_part(self.part))
-        self.part.add_child(self.face.get_part(self.part))
-        self.part.add_child(self.rcounter.get_part(self.part))
-        return self.part
 
     def set_face(self, face):
         if self.face != face:
@@ -526,94 +633,45 @@ class Face:
     def get_face(self, face):
         return self.face
 
-    def draw(self, force):
-        if not (force or self.shoulddraw):
-            return
-        self.shoulddraw = False
-        self.displaycanvas.paste(self.faceimages.i[self.mapping[self.face]], self.position)
+    def _draw(self):
+        self.displaycanvas.paste(self.images.i[self.mapping[self.face]], self.position)
 
-class Board:
-    def __init__(self, displaycanvas, position, boardimages, size, boardsize):
-        self.displaycanvas = displaycanvas
-        self.position = position
-        self.boardimages = boardimages
+class BoardTiles(Part):
+    def __init__(self, displaycanvas, position, size, images, boardsize):
+        Part.__init__(self, displaycanvas, position, size)
+        self.images = images
         self.boardsize = boardsize
-        self.size = size
-        self.boardpixelsize = self.boardimages.getsize(boardsize)
-
-        self.state = [[TileState.Unopened for i in range(self.boardsize[0])] for i in range(self.boardsize[1])]
-
-        self.bganchor = (
-            self.position[0] + self.size[0] // 2,
-            self.position[1],
-        )
-        self.bgamount = (
-            math.ceil(self.size[0] / self.boardimages.bg.size[0]),
-            math.ceil(self.size[1] / self.boardimages.bg.size[1]),
-        )
-        self.bgpos = (
-            self.bganchor[0] - self.bgamount[0] * self.boardimages.bg.size[0] // 2,
-            self.bganchor[1],
-        )
-        self.bg = GridTile(self.displaycanvas, self.bgpos, self.bgamount, self.boardimages.bg)
-
-        self.boardposition = (
-            self.position[0] + (self.size[0] - self.boardpixelsize[0]) // 2,
-            self.position[1],
-        )
-        self.border = Border(self.displaycanvas, self.boardposition, self.boardpixelsize, self.boardimages.border)
 
         self.tiles = [[None for i in range(self.boardsize[0])] for i in range(self.boardsize[1])]
         for col in range(self.boardsize[0]):
             for row in range(self.boardsize[1]):
                 pos = (
-                    self.boardposition[0] + self.boardimages.border.thickness[1] + col * self.boardimages.tile.size[0],
-                    self.boardposition[1] + self.boardimages.border.thickness[0] + row * self.boardimages.tile.size[1],
+                    self.position[0] + col * self.images.size[0],
+                    self.position[1] + row * self.images.size[1],
                 )
-                self.tiles[row][col] = Tile(self.displaycanvas, pos, self.boardimages.tile)
+                self.tiles[row][col] = Tile.new(self.displaycanvas, pos, self.images)
 
-        self.shoulddraw = True
         self.tileschanged = set((row, col) for col in range(self.boardsize[0]) for row in range(self.boardsize[1]))
 
-    def get_part(self, parent):
-        self.part = pos.Part('Board', parent, self.position, self.size)
-        return self.part
+        # Don't add tiles to children, so if Part.get_part_containing(self, coord)
+        # is called, the search stops here and BoardTiles is returned, as opposed
+        # to searching within our tiles array and seeing which tile got clicked,
+        # which would only be more annoying to figure out.
 
-    def set_tile(self, index, tile):
-        """
-        index is a 2-tuple containing the row and col of the tile to be modified.
-        """
-        row, col = index
-        if self.state[row][col] != tile:
-            self.shoulddraw = True
-            self.state[row][col] = tile
-            self.tiles[row][col].set_tile(tile)
-            self.tileschanged.add((row, col))
-            return True
-        return False
-
-    def get_tile(self, index):
-        row, col = index
-        return self.state[row][col]
-
-    def draw(self, force):
-        if not (force or self.shoulddraw):
-            return
-        self.shoulddraw = False
-
-        self.bg.draw(force)
-        self.border.draw(force)
-
+    def draw(self, force=False):
         for row, col in self.tileschanged:
             self.tiles[row][col].draw(force)
-
         self.tileschanged = set()
 
-class Tile:
-    def __init__(self, displaycanvas, position, tileimages):
-        self.displaycanvas = displaycanvas
-        self.position = position
-        self.tileimages = tileimages
+class Tile(Drawable):
+    @classmethod
+    def new(cls, displaycanvas, position, images):
+        size = images.size
+        return cls(displaycanvas, position, size, images)
+
+    def __init__(self, displaycanvas, position, size, images):
+        Drawable.__init__(self, displaycanvas, position, size)
+        self.images = images
 
         self.state = TileState.Unopened
 
@@ -627,14 +685,9 @@ class Tile:
         for i in range(9):
             self.mapping[TileState.Number[i]] = i
 
-        self.shoulddraw = True
-
     def set_tile(self, tile):
-        self.shoulddraw = True
         self.state = tile
-
-    def draw(self, force):
-        if not (force or self.shoulddraw):
-            return
         self.shoulddraw = True
-        self.displaycanvas.paste(self.tileimages.i[self.mapping[self.state]], self.position)
+
+    def _draw(self):
+        self.displaycanvas.paste(self.images.i[self.mapping[self.state]], self.position)

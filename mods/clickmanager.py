@@ -90,6 +90,9 @@ class ClickManager(mod.Mod):
         self.depressed = set()
         self.clickmode = ClickMode.Released
 
+    def pysweep_finish_init(self):
+        self.displaycanvas = self.pysweep.mods['GameDisplay'].displaycanvas
+
     @mod.listen('Clicker', 'LD')
     @mod.listen('Clicker', 'LM')
     @mod.listen('Clicker', 'LU')
@@ -102,6 +105,12 @@ class ClickManager(mod.Mod):
     def listen(self, clickerevent):
         clickaction = self.process_click(clickerevent)
         # print("{!s:>50} : {!s}".format(self.clickmode, clickaction))
+        eventpos = (
+            clickerevent.root_position[0] - self.displaycanvas.winfo_rootx(),
+            clickerevent.root_position[1] - self.displaycanvas.winfo_rooty(),
+        )
+        partcontaining = self.displaycanvas.display.get_part_containing(eventpos)
+        # print(partcontaining, eventpos, partcontaining.position, partcontaining.size)
 
     def process_click(self, clickerevent):
         if self.clickmode == ClickMode.Released:
